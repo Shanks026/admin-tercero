@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Hai/.claude/**)",
+      "Bash(npm install @tanstack/react-query sonner papaparse --save)",
+      "Bash(d:/admin-tercero/src/AppShell.jsx:*)",
+      "Bash(npm run build)",
+      "Bash(d:/admin-tercero/.env.local:*)",
+      "mcp__supabase-mcp-server__list_projects",
+      "mcp__supabase-mcp-server__list_tables",
+      "mcp__supabase-mcp-server__execute_sql",
+      "mcp__supabase-mcp-server__get_project_url",
+      "mcp__supabase-mcp-server__get_publishable_keys",
+      "Bash(npx shadcn@latest add badge --yes)",
+      "Bash(npx --yes shadcn add badge)",
+      "Bash(git init)",
+      "Bash(git branch -M main)",
+      "Bash(git add .)"
+    ]
+  }
+}
