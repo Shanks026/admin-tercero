@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Briefcase, Search, Users, Clock, CheckCircle2, X, AlertTriangle,
+  Briefcase, Search, Users, Clock, CheckCircle2, X, AlertTriangle, User, Building2,
 } from 'lucide-react'
 import { KpiCard } from '@/components/misc/KpiCard'
 import { Button } from '@/components/ui/button'
@@ -82,15 +82,14 @@ export default function ClientsPage() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
+                {hasAgency
+                  ? <Building2 className="size-3 shrink-0 text-muted-foreground/50" />
+                  : <User className="size-3 shrink-0 text-muted-foreground/40" />
+                }
                 <p className={cn(
                   'text-sm font-medium truncate',
                   !hasAgency && 'text-muted-foreground'
                 )}>{displayName}</p>
-                {!hasAgency && (
-                  <span className="shrink-0 text-[10px] px-1 py-0 rounded bg-muted text-muted-foreground/70 leading-4">
-                    profile
-                  </span>
-                )}
               </div>
               <p className="text-xs text-muted-foreground truncate mt-0.5">{displayEmail}</p>
             </div>
