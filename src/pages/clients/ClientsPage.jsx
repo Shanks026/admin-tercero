@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Briefcase, Search, Users, Clock, CheckCircle2, X, AlertTriangle, User, Building2,
+  Briefcase, Search, Users, Clock, CheckCircle2, X, AlertTriangle, User,
 } from 'lucide-react'
 import { KpiCard } from '@/components/misc/KpiCard'
 import { Button } from '@/components/ui/button'
@@ -67,30 +67,22 @@ export default function ClientsPage() {
           .split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
         return (
           <div className="flex items-center gap-3 min-w-0">
-            <div className={cn(
-              'size-8 rounded-lg shrink-0 overflow-hidden flex items-center justify-center ring-1',
-              hasAgency ? 'bg-muted ring-border/40' : 'bg-muted/50 ring-border/20'
-            )}>
-              {item.logo_url ? (
-                <img src={item.logo_url} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
-              ) : (
-                <span className={cn(
-                  'text-[11px] font-semibold',
-                  hasAgency ? 'text-muted-foreground' : 'text-muted-foreground/50'
-                )}>{initials}</span>
-              )}
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                {hasAgency
-                  ? <Building2 className="size-3 shrink-0 text-muted-foreground/50" />
-                  : <User className="size-3 shrink-0 text-muted-foreground/40" />
-                }
-                <p className={cn(
-                  'text-sm font-medium truncate',
-                  !hasAgency && 'text-muted-foreground'
-                )}>{displayName}</p>
+            {/* Avatar — solid for agency, dashed outline + User icon for profile-only */}
+            {hasAgency ? (
+              <div className="size-8 rounded-lg shrink-0 overflow-hidden bg-muted flex items-center justify-center ring-1 ring-border/40">
+                {item.logo_url ? (
+                  <img src={item.logo_url} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
+                ) : (
+                  <span className="text-[11px] font-semibold text-muted-foreground">{initials}</span>
+                )}
               </div>
+            ) : (
+              <div className="size-8 rounded-lg shrink-0 flex items-center justify-center border border-dashed border-border/60 bg-muted/30">
+                <User className="size-3.5 text-muted-foreground/50" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{displayName}</p>
               <p className="text-xs text-muted-foreground truncate mt-0.5">{displayEmail}</p>
             </div>
           </div>
