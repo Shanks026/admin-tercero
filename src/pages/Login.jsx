@@ -42,8 +42,20 @@ export default function LoginPage({ accessDenied }) {
       <div className="w-full max-w-sm space-y-8">
         {/* Logo */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center size-12 rounded-xl bg-primary text-primary-foreground font-bold text-lg mx-auto">
-            T
+          <div className="flex items-center justify-center mx-auto mb-2">
+            <div
+              className="size-10 bg-foreground"
+              style={{
+                maskImage: 'url(/TerceroIcon.svg)',
+                maskRepeat: 'no-repeat',
+                maskPosition: 'center',
+                maskSize: 'contain',
+                WebkitMaskImage: 'url(/TerceroIcon.svg)',
+                WebkitMaskRepeat: 'no-repeat',
+                WebkitMaskPosition: 'center',
+                WebkitMaskSize: 'contain',
+              }}
+            />
           </div>
           <h1 className="text-2xl font-light tracking-tight">Tercero Admin</h1>
           <p className="text-sm text-muted-foreground font-light">Internal operations dashboard</p>
