@@ -15,6 +15,7 @@ import {
   MoreHorizontal,
   X,
 } from 'lucide-react'
+import { KpiCard } from '@/components/misc/KpiCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -137,7 +138,7 @@ function AddProspectDialog({ open, onClose }) {
                 <FormLabel>Source</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     {SOURCES.map((s) => (
@@ -302,52 +303,6 @@ function CsvImportDialog({ open, onClose }) {
   )
 }
 
-// ─── Stats bar ────────────────────────────────────────────────────────────────
-
-function StatsBar({ data = [] }) {
-  const stats = [
-    {
-      label: 'Total',
-      value: data.length,
-      icon: Users,
-      color: 'text-blue-600 dark:text-blue-400',
-    },
-    {
-      label: 'Contacted',
-      value: data.filter((p) => p.status === 'contacted').length,
-      icon: TrendingUp,
-      color: 'text-orange-600 dark:text-orange-400',
-    },
-    {
-      label: 'Demo Scheduled',
-      value: data.filter((p) => p.status === 'demo_scheduled').length,
-      icon: CalendarClock,
-      color: 'text-purple-600 dark:text-purple-400',
-    },
-    {
-      label: 'Converted',
-      value: data.filter((p) => p.status === 'converted').length,
-      icon: CheckCircle2,
-      color: 'text-teal-600 dark:text-teal-400',
-    },
-  ]
-
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      {stats.map((s) => (
-        <div key={s.label} className="rounded-xl border bg-card px-4 py-3 flex items-center gap-3">
-          <div className={`rounded-lg bg-muted p-2 shrink-0`}>
-            <s.icon className={`size-4 ${s.color}`} />
-          </div>
-          <div>
-            <p className="text-2xl font-light">{s.value}</p>
-            <p className="text-xs text-muted-foreground">{s.label}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
@@ -504,7 +459,28 @@ export default function ProspectsPage() {
       </div>
 
       {/* Stats */}
-      <StatsBar data={prospects} />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <KpiCard
+          title="Total"
+          value={prospects.length}
+          icon={<Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+        />
+        <KpiCard
+          title="Contacted"
+          value={prospects.filter((p) => p.status === 'contacted').length}
+          icon={<TrendingUp className="h-4 w-4 text-orange-600 dark:text-orange-400" />}
+        />
+        <KpiCard
+          title="Demo Scheduled"
+          value={prospects.filter((p) => p.status === 'demo_scheduled').length}
+          icon={<CalendarClock className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
+        />
+        <KpiCard
+          title="Converted"
+          value={prospects.filter((p) => p.status === 'converted').length}
+          icon={<CheckCircle2 className="h-4 w-4 text-teal-600 dark:text-teal-400" />}
+        />
+      </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

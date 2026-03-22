@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { format } from 'date-fns'
 import {
   Sheet,
   SheetContent,
@@ -33,6 +32,12 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -45,7 +50,7 @@ import {
   useOutreachLog,
   useAddOutreachEntry,
 } from '@/api/prospects'
-import { MessageCircle, Phone, Mail, Users, Instagram, Trash2, Plus, Calendar } from 'lucide-react'
+import { MessageCircle, Phone, Mail, Users, Instagram, Trash2, Plus, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const CHANNEL_OPTIONS = [
@@ -77,6 +82,47 @@ const outreachSchema = z.object({
   contacted_at: z.string().min(1, 'Date is required'),
 })
 
+// ─── Quick status menu ────────────────────────────────────────────────────────
+
+function QuickStatusMenu({ prospect, onStatusChange }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-1 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <ProspectStatusBadge status={prospect.status} />
+          <ChevronDown className="size-3 text-muted-foreground -ml-0.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-44">
+        <div className="px-2 py-1.5 text-xs text-muted-foreground font-medium">Change status</div>
+        <div className="h-px bg-border my-1" />
+        {PROSPECT_STATUSES.map((s) => (
+          <DropdownMenuItem
+            key={s}
+            disabled={prospect.status === s}
+            onClick={() => onStatusChange(s)}
+            className="capitalize gap-2"
+          >
+            <ProspectStatusBadge status={s} />
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+// ─── Section heading ──────────────────────────────────────────────────────────
+
+function SectionLabel({ children }) {
+  return (
+    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      {children}
+    </p>
+  )
+}
+
+// ─── Outreach log ─────────────────────────────────────────────────────────────
+
 function OutreachLog({ prospectId }) {
   const { data: log = [], isLoading } = useOutreachLog(prospectId)
   const addEntry = useAddOutreachEntry()
@@ -107,28 +153,31 @@ function OutreachLog({ prospectId }) {
   const CHANNEL_LABELS = Object.fromEntries(CHANNEL_OPTIONS.map((c) => [c.value, c.label]))
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-semibold">Outreach Log</h3>
+    <div className="space-y-5">
+      <SectionLabel>Outreach Log</SectionLabel>
 
       {/* Add entry form */}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 rounded-lg border p-3 bg-muted/20">
-          <div className="grid grid-cols-2 gap-3">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-4 rounded-xl border bg-muted/20 px-4 py-4"
+        >
+          <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
               name="channel"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs">Channel</FormLabel>
+                  <FormLabel>Channel</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select..." />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select…" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {CHANNEL_OPTIONS.map((c) => (
-                        <SelectItem key={c.value} value={c.value} className="text-xs">
+                        <SelectItem key={c.value} value={c.value}>
                           {c.label}
                         </SelectItem>
                       ))}
@@ -143,58 +192,64 @@ function OutreachLog({ prospectId }) {
               name="contacted_at"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs">Date</FormLabel>
+                  <FormLabel>Date</FormLabel>
                   <FormControl>
-                    <Input type="datetime-local" className="h-8 text-xs" {...field} />
+                    <Input type="datetime-local" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
+
           <FormField
             control={form.control}
             name="note"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-xs">Note (optional)</FormLabel>
+                <FormLabel>Note <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
                 <FormControl>
                   <Textarea
-                    placeholder="What happened..."
+                    placeholder="What happened…"
                     rows={2}
-                    className="resize-none text-xs"
+                    className="resize-none"
                     {...field}
                   />
                 </FormControl>
               </FormItem>
             )}
           />
-          <Button type="submit" size="sm" className="h-7 text-xs gap-1" disabled={addEntry.isPending}>
-            <Plus className="size-3" />
+
+          <Button type="submit" size="sm" className="gap-1.5" disabled={addEntry.isPending}>
+            <Plus className="size-3.5" />
             Log outreach
           </Button>
         </form>
       </Form>
 
       {/* Log entries */}
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {isLoading ? (
-          <p className="text-xs text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground">Loading…</p>
         ) : log.length === 0 ? (
-          <p className="text-xs text-muted-foreground italic">No outreach logged yet.</p>
+          <p className="text-sm text-muted-foreground italic">No outreach logged yet.</p>
         ) : (
           log.map((entry) => (
-            <div key={entry.id} className="flex gap-3 rounded-md border p-3 bg-card">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium">{CHANNEL_LABELS[entry.channel] || entry.channel}</span>
-                  <span className="text-xs text-muted-foreground">·</span>
-                  <span className="text-xs text-muted-foreground">{formatRelative(entry.contacted_at)}</span>
-                </div>
-                {entry.note && (
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-3">{entry.note}</p>
-                )}
+            <div key={entry.id} className="rounded-xl border bg-card px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">
+                  {CHANNEL_LABELS[entry.channel] || entry.channel}
+                </span>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-sm text-muted-foreground">
+                  {formatRelative(entry.contacted_at)}
+                </span>
               </div>
+              {entry.note && (
+                <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed line-clamp-3">
+                  {entry.note}
+                </p>
+              )}
             </div>
           ))
         )}
@@ -202,6 +257,8 @@ function OutreachLog({ prospectId }) {
     </div>
   )
 }
+
+// ─── Drawer ───────────────────────────────────────────────────────────────────
 
 export function ProspectDrawer({ prospect, open, onClose }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -238,6 +295,11 @@ export function ProspectDrawer({ prospect, open, onClose }) {
     })
   }
 
+  async function handleStatusChange(newStatus) {
+    await updateProspect.mutateAsync({ id: prospect.id, status: newStatus })
+    form.setValue('status', newStatus)
+  }
+
   async function handleDelete() {
     await deleteProspect.mutateAsync(prospect.id)
     setDeleteOpen(false)
@@ -249,101 +311,84 @@ export function ProspectDrawer({ prospect, open, onClose }) {
   return (
     <>
       <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader className="pb-4">
-            <SheetTitle className="text-lg font-semibold">{prospect.name}</SheetTitle>
-            <SheetDescription className="text-sm text-muted-foreground">
-              {prospect.agency_name}
-            </SheetDescription>
-            <div className="flex items-center gap-2 pt-1">
-              <ProspectStatusBadge status={prospect.status} />
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-lg flex flex-col p-0 gap-0 overflow-hidden"
+        >
+          {/* ── Header ── */}
+          <SheetHeader className="px-6 pt-6 pb-5 border-b shrink-0">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <SheetTitle className="text-lg font-semibold leading-snug">
+                  {prospect.name}
+                </SheetTitle>
+                <SheetDescription className="text-sm text-muted-foreground mt-0.5">
+                  {prospect.agency_name}
+                </SheetDescription>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-3">
+              <QuickStatusMenu prospect={prospect} onStatusChange={handleStatusChange} />
               <SourceBadge source={prospect.source} />
             </div>
           </SheetHeader>
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {/* ── Scrollable body ── */}
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} id="prospect-form" className="space-y-8">
 
-              {/* Profile section */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold">Profile</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
+                {/* Profile */}
+                <section className="space-y-4">
+                  <SectionLabel>Profile</SectionLabel>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="name" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs">Full Name</FormLabel>
-                        <FormControl>
-                          <Input className="h-8 text-sm" {...field} />
-                        </FormControl>
+                        <FormLabel>Full Name</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="agency_name"
-                    render={({ field }) => (
+                    )} />
+                    <FormField control={form.control} name="agency_name" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs">Agency Name</FormLabel>
-                        <FormControl>
-                          <Input className="h-8 text-sm" {...field} />
-                        </FormControl>
+                        <FormLabel>Agency</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
+                    )} />
+                    <FormField control={form.control} name="email" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs">Email</FormLabel>
-                        <FormControl>
-                          <Input type="email" className="h-8 text-sm" {...field} />
-                        </FormControl>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl><Input type="email" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
+                    )} />
+                    <FormField control={form.control} name="phone" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs">Phone</FormLabel>
-                        <FormControl>
-                          <Input className="h-8 text-sm" {...field} />
-                        </FormControl>
+                        <FormLabel>Phone</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
+                    )} />
+                  </div>
+                </section>
 
-              <Separator />
+                <Separator className="border-dashed" />
 
-              {/* Status + Next action */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold">Status & Next Action</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
+                {/* Status & Pipeline */}
+                <section className="space-y-4">
+                  <SectionLabel>Status & Pipeline</SectionLabel>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="status" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs">Status</FormLabel>
+                        <FormLabel>Status</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
+                            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {STATUS_OPTIONS.map((s) => (
-                              <SelectItem key={s} value={s} className="text-xs capitalize">
+                              <SelectItem key={s} value={s} className="capitalize">
                                 {s.replace(/_/g, ' ')}
                               </SelectItem>
                             ))}
@@ -351,23 +396,17 @@ export function ProspectDrawer({ prospect, open, onClose }) {
                         </Select>
                         <FormMessage />
                       </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="source"
-                    render={({ field }) => (
+                    )} />
+                    <FormField control={form.control} name="source" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs">Source</FormLabel>
+                        <FormLabel>Source</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
+                            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {SOURCE_OPTIONS.map((s) => (
-                              <SelectItem key={s} value={s} className="text-xs capitalize">
+                              <SelectItem key={s} value={s} className="capitalize">
                                 {s.replace(/_/g, ' ')}
                               </SelectItem>
                             ))}
@@ -375,81 +414,77 @@ export function ProspectDrawer({ prospect, open, onClose }) {
                         </Select>
                         <FormMessage />
                       </FormItem>
-                    )}
-                  />
-                </div>
+                    )} />
+                  </div>
 
-                <FormField
-                  control={form.control}
-                  name="next_action"
-                  render={({ field }) => (
+                  <FormField control={form.control} name="next_action" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs">Next Action</FormLabel>
+                      <FormLabel>Next Action</FormLabel>
                       <FormControl>
-                        <Input className="h-8 text-sm" placeholder="e.g. Follow up after demo" {...field} />
+                        <Input placeholder="e.g. Follow up after demo" {...field} />
                       </FormControl>
                     </FormItem>
-                  )}
-                />
+                  )} />
 
-                <FormField
-                  control={form.control}
-                  name="next_action_date"
-                  render={({ field }) => (
+                  <FormField control={form.control} name="next_action_date" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs">Next Action Date</FormLabel>
+                      <FormLabel>Next Action Date</FormLabel>
                       <FormControl>
-                        <Input type="date" className="h-8 text-sm" {...field} />
+                        <Input type="date" {...field} />
                       </FormControl>
                     </FormItem>
-                  )}
-                />
+                  )} />
 
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
+                  <FormField control={form.control} name="notes" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs">Notes</FormLabel>
+                      <FormLabel>Notes</FormLabel>
                       <FormControl>
                         <Textarea
                           rows={3}
-                          className="resize-none text-sm"
-                          placeholder="Any notes about this prospect..."
+                          className="resize-none"
+                          placeholder="Any notes about this prospect…"
                           {...field}
                         />
                       </FormControl>
                     </FormItem>
-                  )}
-                />
-              </div>
+                  )} />
+                </section>
 
-              <div className="flex items-center justify-between pt-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5"
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  <Trash2 className="size-3.5" />
-                  Delete
-                </Button>
-                <Button type="submit" size="sm" disabled={updateProspect.isPending}>
-                  {updateProspect.isPending ? 'Saving...' : 'Save changes'}
-                </Button>
-              </div>
+              </form>
+            </Form>
 
-              <Separator />
+            <Separator className="border-dashed" />
 
-              {/* Outreach log */}
-              <OutreachLog prospectId={prospect.id} />
+            {/* Outreach log */}
+            <OutreachLog prospectId={prospect.id} />
 
-              <div className="text-xs text-muted-foreground pt-2 pb-4">
-                Added {formatDate(prospect.created_at)}
-              </div>
-            </form>
-          </Form>
+            {/* Added date */}
+            <p className="text-xs text-muted-foreground pb-2">
+              Added {formatDate(prospect.created_at)}
+            </p>
+          </div>
+
+          {/* ── Sticky footer ── */}
+          <div className="px-6 py-4 border-t shrink-0 flex items-center justify-between gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="size-3.5" />
+              Delete
+            </Button>
+            <Button
+              type="submit"
+              form="prospect-form"
+              size="sm"
+              disabled={updateProspect.isPending}
+            >
+              {updateProspect.isPending ? 'Saving…' : 'Save changes'}
+            </Button>
+          </div>
         </SheetContent>
       </Sheet>
 
@@ -465,7 +500,7 @@ export function ProspectDrawer({ prospect, open, onClose }) {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setDeleteOpen(false)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleteProspect.isPending}>
-              {deleteProspect.isPending ? 'Deleting...' : 'Delete'}
+              {deleteProspect.isPending ? 'Deleting…' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

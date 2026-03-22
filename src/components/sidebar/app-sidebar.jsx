@@ -1,10 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
+  LayoutDashboard,
   Users,
   Briefcase,
   MessageSquare,
   LogOut,
   ChevronsUpDown,
+  IndianRupee,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
@@ -32,13 +34,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 
-const PIPELINE_NAV = [
+const NAV_ITEMS = [
+  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Prospects', url: '/prospects', icon: Users },
-  { title: 'Clients', url: '/clients', icon: Briefcase },
-]
-
-const SUPPORT_NAV = [
-  { title: 'Feedback', url: '/feedback', icon: MessageSquare },
+  { title: 'Clients',   url: '/clients',   icon: Briefcase },
+  { title: 'Feedback',  url: '/feedback',  icon: MessageSquare },
+  { title: 'Revenue',   url: '/revenue',   icon: IndianRupee },
 ]
 
 function NavItem({ item }) {
@@ -57,9 +58,13 @@ function NavItem({ item }) {
   )
 }
 
+const DEFAULT_ICON = '/TerceroIcon.svg'
+const LANDSCAPE_LOGO = '/TerceroLand.svg'
+
 export function AppSidebar() {
-  const { state } = useSidebar()
+  const { state, isMobile } = useSidebar()
   const { user, profile, signOut } = useAuth()
+  const isCollapsed = state === 'collapsed' && !isMobile
 
   const fullName = profile?.full_name || user?.email?.split('@')[0] || 'Admin'
   const email = user?.email || ''
@@ -72,32 +77,41 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r" collapsible="icon">
-      <SidebarHeader>
+      <SidebarHeader className="px-2">
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg">
-              <div className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold shrink-0 text-sm">
-                T
+          <SidebarMenuItem className="flex items-center">
+            <SidebarMenuButton
+              size={isCollapsed ? 'default' : 'lg'}
+              className={`hover:bg-transparent cursor-default ${isCollapsed ? 'justify-center p-0 w-full' : 'justify-start'}`}
+            >
+              {/* Logo */}
+              <div className={`flex shrink-0 items-center justify-center overflow-hidden ${isCollapsed ? 'size-7' : 'h-9 w-32 ml-[-4px]'}`}>
+                <div
+                  className={`${isCollapsed ? 'size-5' : 'h-7 w-28'} bg-foreground`}
+                  style={{
+                    maskImage: `url(${isCollapsed ? DEFAULT_ICON : LANDSCAPE_LOGO})`,
+                    maskRepeat: 'no-repeat',
+                    maskPosition: 'center',
+                    maskSize: 'contain',
+                    WebkitMaskImage: `url(${isCollapsed ? DEFAULT_ICON : LANDSCAPE_LOGO})`,
+                    WebkitMaskRepeat: 'no-repeat',
+                    WebkitMaskPosition: 'center',
+                    WebkitMaskSize: 'contain',
+                  }}
+                />
               </div>
-              <div className="flex flex-col text-left min-w-0">
-                <span className="text-sm font-semibold truncate">Tercero</span>
-                <span className="text-xs text-muted-foreground truncate">Admin</span>
-              </div>
-              {state === 'expanded' && (
-                <div className="ml-auto shrink-0">
-                  <SidebarTrigger />
-                </div>
-              )}
             </SidebarMenuButton>
+
+            {/* Collapse trigger — expanded desktop only */}
+            {!isCollapsed && !isMobile && (
+              <SidebarTrigger className="ml-auto shrink-0" />
+            )}
           </SidebarMenuItem>
 
-          {state === 'collapsed' && (
-            <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Expand sidebar" className="justify-center">
-                <div className="mt-2">
-                  <SidebarTrigger />
-                </div>
-              </SidebarMenuButton>
+          {/* Expand trigger — collapsed desktop only */}
+          {isCollapsed && !isMobile && (
+            <SidebarMenuItem className="flex justify-center mt-2">
+              <SidebarTrigger />
             </SidebarMenuItem>
           )}
         </SidebarMenu>
@@ -108,24 +122,11 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           {state === 'expanded' && (
-            <SidebarGroupLabel>Pipeline</SidebarGroupLabel>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           )}
           <SidebarGroupContent>
             <SidebarMenu>
-              {PIPELINE_NAV.map((item) => (
-                <NavItem key={item.title} item={item} />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          {state === 'expanded' && (
-            <SidebarGroupLabel>Support</SidebarGroupLabel>
-          )}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {SUPPORT_NAV.map((item) => (
+              {NAV_ITEMS.map((item) => (
                 <NavItem key={item.title} item={item} />
               ))}
             </SidebarMenu>

@@ -24,7 +24,9 @@ async function fetchClients({ search, plan, superadminId } = {}) {
   const { data, error } = await query
   if (error) throw error
 
-  let results = (data || []).filter((s) => s.user_id !== superadminId)
+  let results = (data || []).filter(
+    (s) => s.user_id !== superadminId && s.email !== 'winterworksbusiness@gmail.com'
+  )
 
   if (search) {
     const q = search.toLowerCase()

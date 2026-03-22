@@ -1,22 +1,30 @@
-import { ModeToggle } from "./components/misc/mode-toggle";
+import { useLocation } from 'react-router-dom'
+import { ModeToggle } from '@/components/misc/mode-toggle'
+import { SidebarTrigger } from '@/components/ui/sidebar'
 
-export function AppHeader({ user }) {
-  const name =
-    user?.user_metadata?.full_name ||
-    user?.email?.split("@")[0] ||
-    "User";
+const PAGE_TITLES = {
+  '/dashboard':  'Dashboard',
+  '/prospects':  'Prospects',
+  '/clients':    'Clients',
+  '/feedback':   'Feedback',
+  '/revenue':    'Revenue',
+}
+
+export function AppHeader() {
+  const { pathname } = useLocation()
+  const base = '/' + pathname.split('/')[1]
+  const title = PAGE_TITLES[base] ?? 'Admin'
 
   return (
-    <header className="flex h-16 items-center border-b px-4 w-full">
-      <h1 className="text-sm font-medium text-muted-foreground">
-        Good day,{" "}
-        <span className="text-foreground font-semibold">{name}</span>
-      </h1>
+    <header className="sticky top-0 z-50 flex shrink-0 h-16 items-center px-4 md:px-8 border-b w-full bg-background/80 backdrop-blur-md">
+      <span className="text-sm font-semibold text-foreground">{title}</span>
 
-      {/* Spacer pushes everything after it to the right */}
-      <div className="ml-auto" />
-
-      <ModeToggle />
+      <div className="ml-auto flex items-center gap-2">
+        <ModeToggle />
+        <div className="md:hidden">
+          <SidebarTrigger />
+        </div>
+      </div>
     </header>
-  );
+  )
 }

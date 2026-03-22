@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Briefcase, Search, Users, Clock, CheckCircle2, TrendingUp, X, AlertTriangle,
+  Briefcase, Search, Users, Clock, CheckCircle2, X, AlertTriangle,
 } from 'lucide-react'
+import { KpiCard } from '@/components/misc/KpiCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -17,51 +18,6 @@ import { formatDate } from '@/lib/helper'
 import { useClients, isChurnRisk, trialDaysLeft, PLANS } from '@/api/clients'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
-
-function StatsBar({ data = [] }) {
-  const stats = [
-    {
-      label: 'Total Clients',
-      value: data.length,
-      icon: Users,
-      color: 'text-blue-600 dark:text-blue-400',
-    },
-    {
-      label: 'Active Trial',
-      value: data.filter((c) => c.plan_name === 'trial').length,
-      icon: Clock,
-      color: 'text-orange-600 dark:text-orange-400',
-    },
-    {
-      label: 'Paid Plans',
-      value: data.filter((c) => c.plan_name !== 'trial').length,
-      icon: CheckCircle2,
-      color: 'text-emerald-600 dark:text-emerald-400',
-    },
-    {
-      label: 'Churn Risk',
-      value: data.filter(isChurnRisk).length,
-      icon: AlertTriangle,
-      color: 'text-rose-600 dark:text-rose-400',
-    },
-  ]
-
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      {stats.map((s) => (
-        <div key={s.label} className="rounded-xl border bg-card px-4 py-3 flex items-center gap-3">
-          <div className="rounded-lg bg-muted p-2 shrink-0">
-            <s.icon className={`size-4 ${s.color}`} />
-          </div>
-          <div>
-            <p className="text-2xl font-light">{s.value}</p>
-            <p className="text-xs text-muted-foreground">{s.label}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 function TrialExpiry({ client }) {
   const days = trialDaysLeft(client.trial_ends_at)
@@ -187,7 +143,29 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      <StatsBar data={clients} />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <KpiCard
+          title="Total Clients"
+          value={clients.length}
+          icon={<Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+        />
+        <KpiCard
+          title="Active Trial"
+          value={clients.filter((c) => c.plan_name === 'trial').length}
+          icon={<Clock className="h-4 w-4 text-orange-600 dark:text-orange-400" />}
+        />
+        <KpiCard
+          title="Paid Plans"
+          value={clients.filter((c) => c.plan_name !== 'trial').length}
+          icon={<CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+        />
+        <KpiCard
+          title="Churn Risk"
+          value={clients.filter(isChurnRisk).length}
+          icon={<AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />}
+          valueClass={clients.filter(isChurnRisk).length > 0 ? 'text-rose-600 dark:text-rose-400' : undefined}
+        />
+      </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="relative w-full sm:max-w-sm">
