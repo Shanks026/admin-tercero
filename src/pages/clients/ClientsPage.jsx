@@ -15,7 +15,7 @@ import {
 import CustomTable from '@/components/misc/CustomTable'
 import { PlanBadge, ProspectStatusBadge } from '@/components/misc/StatusBadge'
 import { formatDate } from '@/lib/helper'
-import { useClients, isChurnRisk, trialDaysLeft, PLANS } from '@/api/clients'
+import { useClients, isChurnRisk, trialDaysLeft, PLANS, storageDisplay } from '@/api/clients'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
 
@@ -58,13 +58,45 @@ export default function ClientsPage() {
   const columns = [
     {
       header: 'Agency',
-      width: '220px',
-      render: (item) => (
-        <div className="min-w-0">
-          <p className="text-sm font-medium truncate">{item.agency_name || '—'}</p>
-          <p className="text-xs text-muted-foreground truncate mt-0.5">{item.email}</p>
-        </div>
-      ),
+      width: '240px',
+      render: (item) => {
+        const hasAgency = item.agency_name || item.email
+        const displayName = item.agency_name || item.auth_full_name || '—'
+        const displayEmail = item.email || item.auth_email || '—'
+        const initials = (displayName !== '—' ? displayName : displayEmail)
+          .split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+        return (
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={cn(
+              'size-8 rounded-lg shrink-0 overflow-hidden flex items-center justify-center ring-1',
+              hasAgency ? 'bg-muted ring-border/40' : 'bg-muted/50 ring-border/20'
+            )}>
+              {item.logo_url ? (
+                <img src={item.logo_url} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
+              ) : (
+                <span className={cn(
+                  'text-[11px] font-semibold',
+                  hasAgency ? 'text-muted-foreground' : 'text-muted-foreground/50'
+                )}>{initials}</span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className={cn(
+                  'text-sm font-medium truncate',
+                  !hasAgency && 'text-muted-foreground'
+                )}>{displayName}</p>
+                {!hasAgency && (
+                  <span className="shrink-0 text-[10px] px-1 py-0 rounded bg-muted text-muted-foreground/70 leading-4">
+                    profile
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground truncate mt-0.5">{displayEmail}</p>
+            </div>
+          </div>
+        )
+      },
     },
     {
       header: 'Plan',
@@ -80,17 +112,15 @@ export default function ClientsPage() {
       header: 'Storage',
       width: '120px',
       render: (item) => {
-        if (!item.max_storage_bytes) return <span className="text-xs text-muted-foreground">—</span>
-        const usedGb = ((item.current_storage_used || 0) / 1e9).toFixed(1)
-        const maxGb = (item.max_storage_bytes / 1e9).toFixed(0)
-        const pct = Math.round(((item.current_storage_used || 0) / item.max_storage_bytes) * 100)
+        const s = storageDisplay(item.current_storage_used, item.max_storage_bytes, item.plan_name)
+        if (!s) return <span className="text-xs text-muted-foreground">—</span>
         return (
           <div className="min-w-0">
-            <p className="text-xs">{usedGb} / {maxGb} GB</p>
+            <p className="text-xs">{s.usedLabel} / {s.maxGiB} GB</p>
             <div className="mt-1 h-1 w-full rounded-full bg-muted overflow-hidden">
               <div
-                className={cn('h-full rounded-full transition-all', pct > 80 ? 'bg-rose-500' : 'bg-primary')}
-                style={{ width: `${Math.min(pct, 100)}%` }}
+                className={cn('h-full rounded-full transition-all', s.pct > 80 ? 'bg-rose-500' : 'bg-primary')}
+                style={{ width: `${Math.min(s.pct, 100)}%` }}
               />
             </div>
           </div>
@@ -148,21 +178,25 @@ export default function ClientsPage() {
           title="Total Clients"
           value={clients.length}
           icon={<Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+          iconBg="bg-blue-100 dark:bg-blue-500/10"
         />
         <KpiCard
           title="Active Trial"
           value={clients.filter((c) => c.plan_name === 'trial').length}
           icon={<Clock className="h-4 w-4 text-orange-600 dark:text-orange-400" />}
+          iconBg="bg-orange-100 dark:bg-orange-500/10"
         />
         <KpiCard
           title="Paid Plans"
           value={clients.filter((c) => c.plan_name !== 'trial').length}
           icon={<CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+          iconBg="bg-emerald-100 dark:bg-emerald-500/10"
         />
         <KpiCard
           title="Churn Risk"
           value={clients.filter(isChurnRisk).length}
           icon={<AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />}
+          iconBg="bg-rose-100 dark:bg-rose-500/10"
           valueClass={clients.filter(isChurnRisk).length > 0 ? 'text-rose-600 dark:text-rose-400' : undefined}
         />
       </div>

@@ -10,30 +10,25 @@ const KEYS = {
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 
 async function fetchClients({ search, plan, superadminId } = {}) {
-  // agency_subscriptions is publicly readable — filter superadmin client-side
-  let query = supabase
-    .from('agency_subscriptions')
-    .select(`
-      user_id, plan_name, trial_ends_at, agency_name, email,
-      current_storage_used, max_storage_bytes, is_active, created_at
-    `)
-    .order('created_at', { ascending: false })
-
-  if (plan && plan !== 'all') query = query.eq('plan_name', plan)
-
-  const { data, error } = await query
+  const { data, error } = await supabase.rpc('admin_get_clients')
   if (error) throw error
 
   let results = (data || []).filter(
-    (s) => s.user_id !== superadminId && s.email !== 'winterworksbusiness@gmail.com'
+    (s) => s.user_id !== superadminId && s.auth_email !== 'winterworksbusiness@gmail.com'
   )
+
+  if (plan && plan !== 'all') {
+    results = results.filter((s) => s.plan_name === plan)
+  }
 
   if (search) {
     const q = search.toLowerCase()
     results = results.filter(
       (s) =>
         s.agency_name?.toLowerCase().includes(q) ||
-        s.email?.toLowerCase().includes(q)
+        s.email?.toLowerCase().includes(q) ||
+        s.auth_email?.toLowerCase().includes(q) ||
+        s.auth_full_name?.toLowerCase().includes(q)
     )
   }
 
@@ -138,3 +133,25 @@ export function trialDaysLeft(trialEndsAt) {
 }
 
 export const PLANS = ['trial', 'ignite', 'velocity', 'quantum']
+
+// Binary GiB limits — must match agency_subscriptions seed values
+export const PLAN_STORAGE_BYTES = {
+  trial:    21_474_836_480,   // 20 GiB
+  ignite:   21_474_836_480,   // 20 GiB
+  velocity: 107_374_182_400,  // 100 GiB
+  quantum:  536_870_912_000,  // 500 GiB
+}
+
+const MiB = 1024 ** 2
+const GiB = 1024 ** 3
+export function storageDisplay(usedBytes, maxBytes, planName) {
+  const max = maxBytes || PLAN_STORAGE_BYTES[planName] || null
+  if (!max) return null
+  const used = usedBytes || 0
+  const usedLabel = used < GiB
+    ? `${(used / MiB).toFixed(0)} MB`
+    : `${(used / GiB).toFixed(1)} GB`
+  const maxGiB = Math.round(max / GiB)
+  const pct = Math.round((used / max) * 100)
+  return { usedLabel, maxGiB, pct }
+}
