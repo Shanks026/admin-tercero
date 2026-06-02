@@ -19,19 +19,53 @@ import { useClients, isChurnRisk, trialDaysLeft, PLANS, storageDisplay } from '@
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
 
-function TrialExpiry({ client }) {
-  const days = trialDaysLeft(client.trial_ends_at)
-  if (client.plan_name !== 'trial' || days === null) return <span className="text-xs text-muted-foreground">—</span>
+function subscriptionStatus(client) {
+  if (!client.is_active) return 'inactive'
+  if (client.plan_name === 'trial') {
+    const days = trialDaysLeft(client.trial_ends_at)
+    if (days !== null && days < 0) return 'expired'
+    return 'trial'
+  }
+  if (client.subscription_ends_at && new Date(client.subscription_ends_at) < new Date()) return 'expired'
+  return 'active'
+}
 
-  const isRisk = isChurnRisk(client)
+const STATUS_STYLES = {
+  active:   'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400',
+  trial:    'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400',
+  expired:  'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-400',
+  inactive: 'bg-muted text-muted-foreground',
+}
+
+function SubscriptionStatusBadge({ client }) {
+  const status = subscriptionStatus(client)
+  return (
+    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize', STATUS_STYLES[status])}>
+      {status}
+    </span>
+  )
+}
+
+function ExpiresCell({ client }) {
+  const status = subscriptionStatus(client)
+  if (status === 'inactive') return <span className="text-xs text-muted-foreground">—</span>
+
+  const endsAt = client.plan_name === 'trial' ? client.trial_ends_at : client.subscription_ends_at
+  if (!endsAt) return <span className="text-xs text-muted-foreground">—</span>
+
+  const days = Math.ceil((new Date(endsAt) - new Date()) / (1000 * 60 * 60 * 24))
   const expired = days < 0
+  const risk = isChurnRisk(client)
 
   return (
-    <div className={cn('flex items-center gap-1.5', isRisk && 'text-rose-600 dark:text-rose-400')}>
-      {isRisk && <AlertTriangle className="size-3.5 shrink-0" />}
-      <span className="text-xs font-medium">
-        {expired ? 'Expired' : days === 0 ? 'Today' : `${days}d left`}
-      </span>
+    <div className={cn('space-y-0.5', (expired || risk) && 'text-rose-600 dark:text-rose-400')}>
+      <div className="flex items-center gap-1">
+        {risk && !expired && <AlertTriangle className="size-3.5 shrink-0" />}
+        <span className="text-xs font-medium">
+          {expired ? `${Math.abs(days)}d ago` : days === 0 ? 'Today' : `${days}d left`}
+        </span>
+      </div>
+      <p className="text-xs text-muted-foreground">{formatDate(endsAt, 'MMM d, yy')}</p>
     </div>
   )
 }
@@ -41,18 +75,24 @@ export default function ClientsPage() {
   const { profile } = useAuth()
   const [search, setSearch] = useState('')
   const [planFilter, setPlanFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
 
-  const { data: clients = [], isLoading } = useClients({
+  const { data: rawClients = [], isLoading } = useClients({
     search: search || undefined,
     plan: planFilter,
     superadminId: profile?.id,
   })
 
-  const hasFilters = search || planFilter !== 'all'
+  const clients = statusFilter === 'all'
+    ? rawClients
+    : rawClients.filter((c) => subscriptionStatus(c) === statusFilter)
+
+  const hasFilters = search || planFilter !== 'all' || statusFilter !== 'all'
 
   function clearFilters() {
     setSearch('')
     setPlanFilter('all')
+    setStatusFilter('all')
   }
 
   const columns = [
@@ -95,9 +135,14 @@ export default function ClientsPage() {
       render: (item) => <PlanBadge plan={item.plan_name} />,
     },
     {
-      header: 'Trial Expiry',
+      header: 'Status',
+      width: '100px',
+      render: (item) => <SubscriptionStatusBadge client={item} />,
+    },
+    {
+      header: 'Expires',
       width: '130px',
-      render: (item) => <TrialExpiry client={item} />,
+      render: (item) => <ExpiresCell client={item} />,
     },
     {
       header: 'Storage',
@@ -153,7 +198,7 @@ export default function ClientsPage() {
   )
 
   return (
-    <div className="p-8 max-w-[1400px] mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="p-8 max-w-350 mx-auto space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-light tracking-tight">
@@ -204,7 +249,7 @@ export default function ClientsPage() {
         </div>
         <div className="flex items-center gap-3">
           <Select value={planFilter} onValueChange={setPlanFilter}>
-            <SelectTrigger className="h-9 w-[150px]">
+            <SelectTrigger className="h-9 w-36">
               <SelectValue placeholder="All plans" />
             </SelectTrigger>
             <SelectContent>
@@ -212,6 +257,19 @@ export default function ClientsPage() {
               {PLANS.map((p) => (
                 <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 w-36">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="trial">Trial</SelectItem>
+              <SelectItem value="expired">Expired</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
             </SelectContent>
           </Select>
 

@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PLAN_PRICES = { ignite: 2999, velocity: 8999, quantum: 17999 }
+const PLAN_PRICES = { ignite: 1999, velocity: 4999, quantum: 12999 }
 
 const PLAN_META = [
   { plan: 'ignite',   label: 'Ignite',   icon: Zap,      bar: 'bg-orange-400' },

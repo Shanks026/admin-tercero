@@ -16,7 +16,7 @@ export function KpiCard({ title, value, sub, icon, iconBg, valueClass, className
   return (
     <Card
       className={cn(
-        'rounded-2xl border-none bg-card/50 shadow-sm ring-1 ring-border/50 dark:bg-card/20',
+        'rounded-xl border-none bg-card/50 shadow-sm ring-1 ring-border/50 dark:bg-card/20 gap-2',
         className,
       )}
     >

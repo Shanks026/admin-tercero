@@ -5,7 +5,7 @@ import { KpiCard } from '@/components/misc/KpiCard'
 import { useClients, isChurnRisk, PLANS } from '@/api/clients'
 import { useAuth } from '@/context/AuthContext'
 
-const PLAN_PRICES = { ignite: 2999, velocity: 8999, quantum: 17999 }
+const PLAN_PRICES = { ignite: 1999, velocity: 4999, quantum: 12999 }
 
 function formatINR(n) {
   return new Intl.NumberFormat('en-IN', {

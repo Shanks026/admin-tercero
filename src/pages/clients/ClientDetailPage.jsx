@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, Building2, Mail, Phone, Globe, AlertTriangle,
-  HardDrive, Users, Clock, MessageSquare,
+  ArrowLeft, Building2, AlertTriangle,
+  Users, Clock, MessageSquare, RefreshCw, Settings2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -10,17 +10,55 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
-import { PlanBadge, ProspectStatusBadge, SourceBadge } from '@/components/misc/StatusBadge'
+import { PlanBadge, SourceBadge } from '@/components/misc/StatusBadge'
 import { formatDate, formatRelative } from '@/lib/helper'
-import { useClientDetail, useClientOutreach, useUpdateClientStatus, isChurnRisk, trialDaysLeft, PLANS } from '@/api/clients'
+import {
+  useClientDetail, useClientOutreach, useUpdateClientStatus,
+  useUpgradePlan, useRenewSubscription, useToggleActive, useManualOverride,
+  isChurnRisk, trialDaysLeft, PLANS,
+} from '@/api/clients'
 import { PROSPECT_STATUSES } from '@/components/misc/StatusBadge'
 import { cn } from '@/lib/utils'
 
 const CHANNEL_LABELS = {
   whatsapp: 'WhatsApp', instagram: 'Instagram',
   email: 'Email', call: 'Call', in_person: 'In Person',
+}
+
+const FEATURE_FLAGS = [
+  { key: 'branding_agency_sidebar', label: 'Agency Sidebar' },
+  { key: 'branding_powered_by', label: 'Powered By' },
+  { key: 'finance_recurring_invoices', label: 'Recurring Invoices' },
+  { key: 'finance_subscriptions', label: 'Subscriptions' },
+  { key: 'finance_accrual', label: 'Accrual Finance' },
+  { key: 'calendar_export', label: 'Calendar Export' },
+  { key: 'documents_collections', label: 'Document Collections' },
+  { key: 'campaigns', label: 'Campaigns' },
+]
+
+function capitalize(str) {
+  return str ? str.charAt(0).toUpperCase() + str.slice(1) : ''
+}
+
+function Row({ label, value, action }) {
+  return (
+    <div className="flex items-center justify-between py-0.5">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-3">
+        {typeof value === 'string' || typeof value === 'number'
+          ? <span className="text-sm font-medium">{value}</span>
+          : value}
+        {action}
+      </div>
+    </div>
+  )
 }
 
 function Field({ label, value, className }) {
@@ -77,101 +115,418 @@ function ProfileTab({ subscription, prospect }) {
   )
 }
 
-function SubscriptionTab({ subscription }) {
-  const days = trialDaysLeft(subscription.trial_ends_at)
-  const risk = isChurnRisk(subscription)
-  const storageUsedGb = ((subscription.current_storage_used || 0) / 1e9).toFixed(2)
-  const storageMaxGb = subscription.max_storage_bytes ? (subscription.max_storage_bytes / 1e9).toFixed(0) : null
-  const storagePct = storageMaxGb
-    ? Math.round(((subscription.current_storage_used || 0) / subscription.max_storage_bytes) * 100)
-    : 0
+function ManualOverrideDialog({ subscription, userId, open, onOpenChange }) {
+  const override = useManualOverride(userId)
+  const [form, setForm] = useState(null)
+  const snapshotRef = useRef(subscription)
+
+  useEffect(() => {
+    if (!open) return
+    const s = snapshotRef.current
+    setForm({
+      billing_cycle: s.billing_cycle || 'monthly',
+      subscription_ends_at: s.subscription_ends_at ? new Date(s.subscription_ends_at).toISOString().slice(0, 10) : '',
+      trial_ends_at: s.trial_ends_at ? new Date(s.trial_ends_at).toISOString().slice(0, 10) : '',
+      max_clients: s.max_clients ?? '',
+      max_storage_gb: s.max_storage_bytes ? Math.round(s.max_storage_bytes / (1024 ** 3)) : '',
+      max_team_members: s.max_team_members ?? '',
+      proposals_limit: s.proposals_limit ?? '',
+      extra_client_price_inr: s.extra_client_price_inr ?? '',
+      branding_agency_sidebar: !!s.branding_agency_sidebar,
+      branding_powered_by: !!s.branding_powered_by,
+      finance_recurring_invoices: !!s.finance_recurring_invoices,
+      finance_subscriptions: !!s.finance_subscriptions,
+      finance_accrual: !!s.finance_accrual,
+      calendar_export: !!s.calendar_export,
+      documents_collections: !!s.documents_collections,
+      campaigns: !!s.campaigns,
+    })
+  }, [open])
+
+  function set(key, value) {
+    setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function handleSave() {
+    if (!form) return
+    const fields = {
+      billing_cycle: form.billing_cycle || null,
+      subscription_ends_at: form.subscription_ends_at
+        ? new Date(form.subscription_ends_at).toISOString() : null,
+      trial_ends_at: form.trial_ends_at
+        ? new Date(form.trial_ends_at).toISOString() : null,
+      max_clients: form.max_clients !== '' ? Number(form.max_clients) : null,
+      max_storage_bytes: form.max_storage_gb !== '' ? Number(form.max_storage_gb) * (1024 ** 3) : null,
+      max_team_members: form.max_team_members !== '' ? Number(form.max_team_members) : null,
+      proposals_limit: form.proposals_limit !== '' ? Number(form.proposals_limit) : null,
+      extra_client_price_inr: form.extra_client_price_inr !== '' ? Number(form.extra_client_price_inr) : null,
+      branding_agency_sidebar: form.branding_agency_sidebar,
+      branding_powered_by: form.branding_powered_by,
+      finance_recurring_invoices: form.finance_recurring_invoices,
+      finance_subscriptions: form.finance_subscriptions,
+      finance_accrual: form.finance_accrual,
+      calendar_export: form.calendar_export,
+      documents_collections: form.documents_collections,
+      campaigns: form.campaigns,
+    }
+    override.mutate(fields, { onSuccess: () => onOpenChange(false) })
+  }
+
+  if (!form) return null
 
   return (
-    <div className="space-y-4 pt-4">
-      {risk && (
-        <div className="flex items-center gap-3 rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/5 px-4 py-3">
-          <AlertTriangle className="size-4 text-rose-600 dark:text-rose-400 shrink-0" />
-          <p className="text-sm text-rose-700 dark:text-rose-400">
-            Trial expires in <span className="font-semibold">{days} day{days !== 1 ? 's' : ''}</span> — no paid plan yet.
-          </p>
-        </div>
-      )}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl p-0 flex flex-col gap-0 max-h-[85vh] sm:max-w-2xl">
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-xs text-muted-foreground">Current Plan</p>
-          <PlanBadge plan={subscription.plan_name} className="text-sm px-2.5 py-1" />
-        </div>
+        <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+          <DialogTitle className="text-base font-semibold">Edit Fields</DialogTitle>
+        </DialogHeader>
 
-        <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-xs text-muted-foreground">Billing Cycle</p>
-          <p className="text-sm font-medium capitalize">{subscription.billing_cycle || '—'}</p>
-        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
 
-        <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-xs text-muted-foreground">Trial Ends</p>
-          <p className={cn('text-sm font-medium', risk && 'text-rose-600 dark:text-rose-400')}>
-            {subscription.trial_ends_at ? formatDate(subscription.trial_ends_at) : '—'}
-            {days !== null && days >= 0 && (
-              <span className="text-xs text-muted-foreground ml-1">({days}d left)</span>
-            )}
-          </p>
-        </div>
-
-        <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-xs text-muted-foreground">Max Clients</p>
-          <p className="text-sm font-medium">{subscription.max_clients ?? '—'}</p>
-        </div>
-      </div>
-
-      {/* Storage */}
-      <div className="rounded-xl border bg-card p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <HardDrive className="size-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Storage</span>
-          </div>
-          <span className="text-xs text-muted-foreground">
-            {storageUsedGb} GB {storageMaxGb ? `/ ${storageMaxGb} GB` : ''}
-          </span>
-        </div>
-        {storageMaxGb && (
-          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-            <div
-              className={cn('h-full rounded-full', storagePct > 80 ? 'bg-rose-500' : 'bg-primary')}
-              style={{ width: `${Math.min(storagePct, 100)}%` }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Feature flags */}
-      <div className="rounded-xl border p-5 space-y-3">
-        <h3 className="text-sm font-semibold">Features</h3>
-        <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
-          {[
-            ['Agency Sidebar', subscription.branding_agency_sidebar],
-            ['Powered By', subscription.branding_powered_by],
-            ['Recurring Invoices', subscription.finance_recurring_invoices],
-            ['Subscriptions', subscription.finance_subscriptions],
-            ['Accrual Finance', subscription.finance_accrual],
-            ['Calendar Export', subscription.calendar_export],
-            ['Document Collections', subscription.documents_collections],
-            ['Campaigns', subscription.campaigns],
-          ].map(([label, enabled]) => (
-            <div key={label} className="flex items-center justify-between">
-              <span className="text-muted-foreground text-xs">{label}</span>
-              <span className={cn('text-xs font-medium', enabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>
-                {enabled ? 'On' : 'Off'}
-              </span>
+          {/* Limits */}
+          <section className="space-y-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Limits</p>
+            <div className="grid grid-cols-3 gap-x-5 gap-y-5">
+              {[
+                { key: 'max_clients',            label: 'Max Clients',       placeholder: '—' },
+                { key: 'max_storage_gb',         label: 'Max Storage (GB)',  placeholder: '—' },
+                { key: 'max_team_members',       label: 'Team Members',      placeholder: 'Unlimited' },
+                { key: 'proposals_limit',        label: 'Proposals',         placeholder: 'Unlimited' },
+                { key: 'extra_client_price_inr', label: 'Extra Client (₹)',  placeholder: '—' },
+              ].map(({ key, label, placeholder }) => (
+                <div key={key} className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{label}</Label>
+                  <Input
+                    type="number"
+                    className="h-9 text-sm"
+                    value={form[key]}
+                    onChange={(e) => set(key, e.target.value)}
+                    placeholder={placeholder}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
+          </section>
+
+          <Separator />
+
+          {/* Billing */}
+          <section className="space-y-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Billing</p>
+            <div className="grid grid-cols-3 gap-x-5">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Billing Cycle</Label>
+                <Select value={form.billing_cycle} onValueChange={(v) => set('billing_cycle', v)}>
+                  <SelectTrigger className="h-9 text-sm w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="yearly">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Subscription Ends</Label>
+                <Input
+                  type="date"
+                  className="h-9 text-sm"
+                  value={form.subscription_ends_at}
+                  onChange={(e) => set('subscription_ends_at', e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Trial Ends</Label>
+                <Input
+                  type="date"
+                  className="h-9 text-sm"
+                  value={form.trial_ends_at}
+                  onChange={(e) => set('trial_ends_at', e.target.value)}
+                />
+              </div>
+            </div>
+          </section>
+
+          <Separator />
+
+          {/* Feature Flags */}
+          <section className="space-y-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Feature Flags</p>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+              {FEATURE_FLAGS.map(({ key, label }) => (
+                <div key={key} className="flex items-center gap-3">
+                  <Checkbox
+                    id={`flag-${key}`}
+                    checked={form[key]}
+                    onCheckedChange={(checked) => set(key, !!checked)}
+                  />
+                  <Label htmlFor={`flag-${key}`} className="text-sm font-normal cursor-pointer">
+                    {label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </section>
+
+        </div>
+
+        <DialogFooter className="px-6 py-4 border-t shrink-0">
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={override.isPending}>
+            {override.isPending ? 'Saving…' : 'Save Changes'}
+          </Button>
+        </DialogFooter>
+
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ConfirmDialog({ open, onOpenChange, title, description, onConfirm, isPending, variant = 'default' }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base font-semibold">{title}</DialogTitle>
+        </DialogHeader>
+        {description && (
+          <p className="text-sm text-muted-foreground -mt-2">{description}</p>
+        )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button variant={variant} onClick={onConfirm} disabled={isPending}>
+            {isPending ? 'Please wait…' : 'Confirm'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function SubscriptionTab({ subscription, userId }) {
+  const [selectedPlan, setSelectedPlan] = useState(subscription.plan_name)
+  const [overrideOpen, setOverrideOpen] = useState(false)
+  const [confirm, setConfirm] = useState({ open: false, title: '', description: '', onConfirm: null, variant: 'default' })
+
+  const upgradePlan = useUpgradePlan(userId)
+  const renew = useRenewSubscription(userId)
+  const toggleActive = useToggleActive(userId)
+
+  const anyPending = upgradePlan.isPending || renew.isPending || toggleActive.isPending
+
+  function ask(title, description, onConfirm, variant = 'default') {
+    setConfirm({ open: true, title, description, onConfirm, variant })
+  }
+
+  function closeConfirm() {
+    setConfirm(c => ({ ...c, open: false }))
+  }
+
+  const days = trialDaysLeft(subscription.trial_ends_at)
+  const risk = isChurnRisk(subscription)
+  const storageUsed = subscription.current_storage_used || 0
+  const storageMax = subscription.max_storage_bytes || 0
+  const storageUsedGb = (storageUsed / 1e9).toFixed(1)
+  const storageMaxGb = storageMax ? (storageMax / 1e9).toFixed(0) : null
+  const storagePct = storageMax ? Math.round((storageUsed / storageMax) * 100) : 0
+
+  return (
+    <div className="pt-6 space-y-8">
+
+      {/* ── 2-col grid ───────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-x-16 items-start">
+
+        {/* Left: Actions + Features */}
+        <div className="space-y-8">
+
+          {/* Actions */}
+          <div className="space-y-5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Actions</p>
+            <div className="space-y-4">
+              <Row
+                label="Change Plan"
+                value={
+                  <div className="flex items-center gap-2">
+                    <Select value={selectedPlan} onValueChange={setSelectedPlan}>
+                      <SelectTrigger className="h-8 w-28 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PLANS.map((p) => (
+                          <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      onClick={() => ask(
+                        `Change plan to ${capitalize(selectedPlan)}?`,
+                        `This will immediately update all limits and feature flags for the ${capitalize(selectedPlan)} plan.`,
+                        () => upgradePlan.mutate(selectedPlan, { onSuccess: closeConfirm }),
+                      )}
+                      disabled={selectedPlan === subscription.plan_name || upgradePlan.isPending}
+                    >
+                      {upgradePlan.isPending ? 'Applying…' : 'Apply'}
+                    </Button>
+                  </div>
+                }
+              />
+              <Row
+                label="Manual Override"
+                value={
+                  <Button size="sm" variant="outline" className="gap-2" onClick={() => setOverrideOpen(true)}>
+                    <Settings2 className="size-3.5" />
+                    Edit Fields
+                  </Button>
+                }
+              />
+              <Row
+                label={subscription.is_active ? 'Deactivate Account' : 'Activate Account'}
+                value={
+                  <Button
+                    size="sm"
+                    variant={subscription.is_active ? 'destructive' : 'outline'}
+                    className="h-8"
+                    onClick={() => ask(
+                      subscription.is_active ? 'Deactivate account?' : 'Activate account?',
+                      subscription.is_active
+                        ? 'The user will see the subscription ended gate immediately.'
+                        : 'The account will be restored and the user can log in normally.',
+                      () => toggleActive.mutate(!subscription.is_active, { onSuccess: closeConfirm }),
+                      subscription.is_active ? 'destructive' : 'default',
+                    )}
+                    disabled={toggleActive.isPending}
+                  >
+                    {toggleActive.isPending ? '…' : subscription.is_active ? 'Deactivate' : 'Activate'}
+                  </Button>
+                }
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Features */}
+          <div className="space-y-5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Features</p>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+              {FEATURE_FLAGS.map(({ key, label }) => (
+                <div key={key} className="flex items-center gap-2.5">
+                  <span className={cn(
+                    'size-1.5 rounded-full shrink-0 mt-px',
+                    subscription[key] ? 'bg-emerald-500' : 'bg-border'
+                  )} />
+                  <span className={cn('text-sm', subscription[key] ? 'text-foreground' : 'text-muted-foreground')}>
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+
+        {/* Right: Billing + Limits */}
+        <div className="space-y-8">
+
+          {/* Billing */}
+          <div className="space-y-5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Billing</p>
+            <div className="space-y-4">
+              <Row label="Billing Cycle" value={capitalize(subscription.billing_cycle) || '—'} />
+              <Row
+                label="Subscription Ends"
+                value={subscription.subscription_ends_at ? formatDate(subscription.subscription_ends_at) : '—'}
+                action={subscription.plan_name !== 'trial' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1.5"
+                    onClick={() => ask(
+                      'Renew subscription?',
+                      `Extends the subscription by ${subscription.billing_cycle === 'yearly' ? '365' : '30'} days from today and ensures the account is active.`,
+                      () => renew.mutate(subscription.billing_cycle, { onSuccess: closeConfirm }),
+                    )}
+                    disabled={renew.isPending}
+                  >
+                    <RefreshCw className="size-3" />
+                    {renew.isPending ? 'Renewing…' : `+${subscription.billing_cycle === 'yearly' ? '365' : '30'}d`}
+                  </Button>
+                )}
+              />
+              {subscription.plan_name === 'trial' && subscription.trial_ends_at && (
+                <Row
+                  label="Trial Ends"
+                  value={
+                    <span className={cn('text-sm font-medium', risk && 'text-rose-600 dark:text-rose-400')}>
+                      {formatDate(subscription.trial_ends_at)}
+                      {days !== null && days >= 0 && (
+                        <span className="text-xs text-muted-foreground ml-1.5">({days}d left)</span>
+                      )}
+                    </span>
+                  }
+                />
+              )}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Limits */}
+          <div className="space-y-5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Limits</p>
+            <div className="space-y-4">
+              <Row label="Max Clients" value={subscription.max_clients ?? '—'} />
+              <Row label="Team Members" value={subscription.max_team_members ?? 'Unlimited'} />
+              <Row label="Proposals" value={subscription.proposals_limit ?? 'Unlimited'} />
+              {subscription.extra_client_price_inr && (
+                <Row label="Extra Client Slot" value={`₹${subscription.extra_client_price_inr}`} />
+              )}
+              <div className="flex items-center justify-between py-0.5">
+                <span className="text-sm text-muted-foreground">Storage</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium">
+                    {storageUsedGb} GB{storageMaxGb ? ` / ${storageMaxGb} GB` : ''}
+                  </span>
+                  {storageMaxGb && (
+                    <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn('h-full rounded-full', storagePct > 80 ? 'bg-rose-500' : 'bg-primary')}
+                        style={{ width: `${Math.min(storagePct, 100)}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
       <p className="text-xs text-muted-foreground">
         Account created {formatDate(subscription.created_at)}
       </p>
+
+      <ManualOverrideDialog
+        subscription={subscription}
+        userId={userId}
+        open={overrideOpen}
+        onOpenChange={setOverrideOpen}
+      />
+
+      <ConfirmDialog
+        open={confirm.open}
+        onOpenChange={(open) => setConfirm(c => ({ ...c, open }))}
+        title={confirm.title}
+        description={confirm.description}
+        onConfirm={confirm.onConfirm}
+        isPending={anyPending}
+        variant={confirm.variant}
+      />
     </div>
   )
 }
@@ -240,7 +595,7 @@ export default function ClientDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="p-8 max-w-[1400px] mx-auto space-y-6">
+      <div className="p-8 max-w-350 mx-auto space-y-6">
         <Skeleton className="h-8 w-48" />
         <div className="grid grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
@@ -252,7 +607,7 @@ export default function ClientDetailPage() {
 
   if (error || !data) {
     return (
-      <div className="p-8 max-w-[1400px] mx-auto">
+      <div className="p-8 max-w-350 mx-auto">
         <Button variant="ghost" size="sm" onClick={() => navigate('/clients')} className="gap-2 mb-6">
           <ArrowLeft className="size-4" /> Back to Clients
         </Button>
@@ -271,7 +626,7 @@ export default function ClientDetailPage() {
   ]
 
   return (
-    <div className="p-8 max-w-[1400px] mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="p-8 max-w-350 mx-auto space-y-6 animate-in fade-in duration-500">
       {/* Back + header */}
       <div>
         <Button variant="ghost" size="sm" onClick={() => navigate('/clients')} className="gap-2 -ml-2 mb-4">
@@ -285,6 +640,14 @@ export default function ClientDetailPage() {
                 {subscription.agency_name || subscription.email}
               </h1>
               <PlanBadge plan={subscription.plan_name} />
+              <span className={cn(
+                'text-xs font-medium px-2 py-0.5 rounded-full',
+                subscription.is_active
+                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400'
+                  : 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-400'
+              )}>
+                {subscription.is_active ? 'Active' : 'Inactive'}
+              </span>
               {isChurnRisk(subscription) && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-400 px-2 py-0.5 text-xs font-medium">
                   <AlertTriangle className="size-3" /> Churn Risk
@@ -302,7 +665,7 @@ export default function ClientDetailPage() {
                 value={prospect.status}
                 onValueChange={(status) => updateStatus.mutate({ userId, status })}
               >
-                <SelectTrigger className="h-8 w-[160px] text-xs">
+                <SelectTrigger className="h-8 w-40 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -348,7 +711,7 @@ export default function ClientDetailPage() {
         </TabsContent>
 
         <TabsContent value="subscription" className="mt-2 focus-visible:ring-0 outline-none data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:duration-300">
-          <SubscriptionTab subscription={subscription} />
+          <SubscriptionTab subscription={subscription} userId={userId} />
         </TabsContent>
 
         <TabsContent value="outreach" className="mt-2 focus-visible:ring-0 outline-none data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:duration-300">

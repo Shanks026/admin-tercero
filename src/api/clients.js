@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { toast } from 'sonner'
 
 const KEYS = {
@@ -68,6 +69,75 @@ async function fetchClientOutreach(prospectId) {
   return data
 }
 
+// ─── Plan configs ─────────────────────────────────────────────────────────────
+
+export const PLAN_CONFIGS = {
+  trial: {
+    plan_name: 'trial',
+    max_clients: 3,
+    max_storage_bytes: null,
+    max_team_members: null,
+    proposals_limit: 5,
+    extra_client_price_inr: null,
+    branding_agency_sidebar: false,
+    branding_powered_by: false,
+    finance_recurring_invoices: false,
+    finance_subscriptions: false,
+    finance_accrual: false,
+    calendar_export: false,
+    documents_collections: false,
+    campaigns: false,
+  },
+  ignite: {
+    plan_name: 'ignite',
+    max_clients: 5,
+    max_storage_bytes: 21_474_836_480,  // 20 GB
+    max_team_members: null,
+    proposals_limit: 5,
+    extra_client_price_inr: 500,
+    branding_agency_sidebar: false,
+    branding_powered_by: true,
+    finance_recurring_invoices: false,
+    finance_subscriptions: false,
+    finance_accrual: false,
+    calendar_export: false,
+    documents_collections: false,
+    campaigns: false,
+  },
+  velocity: {
+    plan_name: 'velocity',
+    max_clients: 15,
+    max_storage_bytes: 107_374_182_400,  // 100 GB
+    max_team_members: null,
+    proposals_limit: null,
+    extra_client_price_inr: 500,
+    branding_agency_sidebar: true,
+    branding_powered_by: true,
+    finance_recurring_invoices: true,
+    finance_subscriptions: true,
+    finance_accrual: true,
+    calendar_export: true,
+    documents_collections: true,
+    campaigns: true,
+  },
+  quantum: {
+    plan_name: 'quantum',
+    max_clients: 35,
+    max_storage_bytes: 536_870_912_000,
+    max_team_members: null,
+    proposals_limit: null,
+    extra_client_price_inr: 500,
+    branding_agency_sidebar: true,
+    branding_powered_by: false,
+    finance_recurring_invoices: true,
+    finance_subscriptions: true,
+    finance_accrual: true,
+    calendar_export: true,
+    documents_collections: true,
+    campaigns: true,
+  },
+}
+
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 async function updateClientProspectStatus({ userId, status }) {
@@ -75,6 +145,43 @@ async function updateClientProspectStatus({ userId, status }) {
     .from('admin_prospects')
     .update({ status, updated_at: new Date().toISOString() })
     .eq('tercero_user_id', userId)
+  if (error) throw error
+}
+
+async function upgradePlan({ userId, plan }) {
+  const config = PLAN_CONFIGS[plan]
+  if (!config) throw new Error(`Unknown plan: ${plan}`)
+  const { error } = await supabaseAdmin
+    .from('agency_subscriptions')
+    .update(config)
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+async function renewSubscription({ userId, billingCycle }) {
+  const days = billingCycle === 'yearly' ? 365 : 30
+  const endsAt = new Date()
+  endsAt.setDate(endsAt.getDate() + days)
+  const { error } = await supabaseAdmin
+    .from('agency_subscriptions')
+    .update({ subscription_ends_at: endsAt.toISOString(), is_active: true })
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+async function toggleActive({ userId, isActive }) {
+  const { error } = await supabaseAdmin
+    .from('agency_subscriptions')
+    .update({ is_active: isActive })
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+async function manualOverride({ userId, fields }) {
+  const { error } = await supabaseAdmin
+    .from('agency_subscriptions')
+    .update(fields)
+    .eq('user_id', userId)
   if (error) throw error
 }
 
@@ -113,6 +220,58 @@ export function useUpdateClientStatus() {
       toast.success('Status updated')
     },
     onError: (e) => toast.error(e.message || 'Failed to update status'),
+  })
+}
+
+export function useUpgradePlan(userId) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (plan) => upgradePlan({ userId, plan }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(userId) })
+      qc.invalidateQueries({ queryKey: ['admin', 'clients', 'list'] })
+      toast.success('Plan updated')
+    },
+    onError: (e) => toast.error(e.message || 'Failed to update plan'),
+  })
+}
+
+export function useRenewSubscription(userId) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (billingCycle) => renewSubscription({ userId, billingCycle }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(userId) })
+      qc.invalidateQueries({ queryKey: ['admin', 'clients', 'list'] })
+      toast.success('Subscription renewed')
+    },
+    onError: (e) => toast.error(e.message || 'Failed to renew subscription'),
+  })
+}
+
+export function useToggleActive(userId) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (isActive) => toggleActive({ userId, isActive }),
+    onSuccess: (_, isActive) => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(userId) })
+      qc.invalidateQueries({ queryKey: ['admin', 'clients', 'list'] })
+      toast.success(isActive ? 'Account activated' : 'Account deactivated')
+    },
+    onError: (e) => toast.error(e.message || 'Failed to toggle account'),
+  })
+}
+
+export function useManualOverride(userId) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (fields) => manualOverride({ userId, fields }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(userId) })
+      qc.invalidateQueries({ queryKey: ['admin', 'clients', 'list'] })
+      toast.success('Subscription updated')
+    },
+    onError: (e) => toast.error(e.message || 'Failed to save changes'),
   })
 }
 
