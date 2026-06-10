@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Building2, AlertTriangle,
-  Users, Clock, MessageSquare, RefreshCw, Settings2,
+  Users, Clock, MessageSquare, RefreshCw, Settings2, Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -22,7 +22,7 @@ import { formatDate, formatRelative } from '@/lib/helper'
 import {
   useClientDetail, useClientOutreach, useUpdateClientStatus,
   useUpgradePlan, useRenewSubscription, useToggleActive, useManualOverride,
-  isChurnRisk, trialDaysLeft, PLANS,
+  useDeleteClient, isChurnRisk, trialDaysLeft, PLANS,
 } from '@/api/clients'
 import { PROSPECT_STATUSES } from '@/components/misc/StatusBadge'
 import { cn } from '@/lib/utils'
@@ -278,6 +278,63 @@ function ManualOverrideDialog({ subscription, userId, open, onOpenChange }) {
           </Button>
         </DialogFooter>
 
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DeleteClientDialog({ open, onOpenChange, agencyName, userId }) {
+  const [typed, setTyped] = useState('')
+  const navigate = useNavigate()
+  const deleteClient = useDeleteClient()
+
+  function handleDelete() {
+    deleteClient.mutate(userId, {
+      onSuccess: () => {
+        onOpenChange(false)
+        navigate('/clients')
+      },
+    })
+  }
+
+  const confirmed = typed === agencyName
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base font-semibold text-destructive">
+            Delete Client Permanently
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 -mt-1">
+          <p className="text-sm text-muted-foreground">
+            This will permanently delete <span className="font-medium text-foreground">{agencyName}</span> and all associated data — clients, posts, documents, invoices, meetings, notes, and more. This cannot be undone.
+          </p>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Type <span className="font-medium text-foreground">{agencyName}</span> to confirm
+            </Label>
+            <Input
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              placeholder={agencyName}
+              className="text-sm"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={deleteClient.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={!confirmed || deleteClient.isPending}
+          >
+            {deleteClient.isPending ? 'Deleting…' : 'Delete Permanently'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -589,6 +646,7 @@ export default function ClientDetailPage() {
   const { userId } = useParams()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('profile')
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const updateStatus = useUpdateClientStatus()
 
   const { data, isLoading, error } = useClientDetail(userId)
@@ -657,27 +715,38 @@ export default function ClientDetailPage() {
             <p className="text-sm text-muted-foreground font-light">{subscription.email}</p>
           </div>
 
-          {/* Status update (if prospect is linked) */}
-          {prospect && (
-            <div className="flex items-center gap-3 shrink-0">
-              <span className="text-xs text-muted-foreground">Pipeline status</span>
-              <Select
-                value={prospect.status}
-                onValueChange={(status) => updateStatus.mutate({ userId, status })}
-              >
-                <SelectTrigger className="h-8 w-40 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROSPECT_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s} className="text-xs capitalize">
-                      {s.replace(/_/g, ' ')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Status update (if prospect is linked) */}
+            {prospect && (
+              <>
+                <span className="text-xs text-muted-foreground">Pipeline status</span>
+                <Select
+                  value={prospect.status}
+                  onValueChange={(status) => updateStatus.mutate({ userId, status })}
+                >
+                  <SelectTrigger className="h-8 w-40 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROSPECT_STATUSES.map((s) => (
+                      <SelectItem key={s} value={s} className="text-xs capitalize">
+                        {s.replace(/_/g, ' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+            <Button
+              size="sm"
+              variant="destructive"
+              className="gap-1.5"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="size-3.5" />
+              Delete
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -722,6 +791,13 @@ export default function ClientDetailPage() {
           <FeedbackTab />
         </TabsContent>
       </Tabs>
+
+      <DeleteClientDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        agencyName={subscription.agency_name || subscription.email}
+        userId={userId}
+      />
     </div>
   )
 }

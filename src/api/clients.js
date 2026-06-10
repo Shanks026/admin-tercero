@@ -42,7 +42,7 @@ async function fetchClientDetail(userId) {
       .from('agency_subscriptions')
       .select('*')
       .eq('user_id', userId)
-      .single(),
+      .maybeSingle(),
     supabase
       .from('admin_prospects')
       .select('*')
@@ -51,6 +51,7 @@ async function fetchClientDetail(userId) {
   ])
 
   if (subResult.error) throw subResult.error
+  if (!subResult.data) throw new Error('Client not found')
 
   return {
     subscription: subResult.data,
@@ -72,27 +73,28 @@ async function fetchClientOutreach(prospectId) {
 // ─── Plan configs ─────────────────────────────────────────────────────────────
 
 export const PLAN_CONFIGS = {
+  // Trial mirrors Quantum — full access, time-limited via trial_ends_at (14 days)
   trial: {
     plan_name: 'trial',
-    max_clients: 3,
-    max_storage_bytes: null,
+    max_clients: 30,
+    max_storage_bytes: 322_122_547_200,  // 300 GB
     max_team_members: null,
-    proposals_limit: 5,
+    proposals_limit: null,
     extra_client_price_inr: null,
-    branding_agency_sidebar: false,
+    branding_agency_sidebar: true,
     branding_powered_by: false,
-    finance_recurring_invoices: false,
-    finance_subscriptions: false,
-    finance_accrual: false,
-    calendar_export: false,
-    documents_collections: false,
-    campaigns: false,
+    finance_recurring_invoices: true,
+    finance_subscriptions: true,
+    finance_accrual: true,
+    calendar_export: true,
+    documents_collections: true,
+    campaigns: true,
   },
   ignite: {
     plan_name: 'ignite',
     max_clients: 5,
-    max_storage_bytes: 21_474_836_480,  // 20 GB
-    max_team_members: null,
+    max_storage_bytes: 21_474_836_480,   // 20 GB
+    max_team_members: 2,
     proposals_limit: 5,
     extra_client_price_inr: 500,
     branding_agency_sidebar: false,
@@ -102,13 +104,13 @@ export const PLAN_CONFIGS = {
     finance_accrual: false,
     calendar_export: false,
     documents_collections: false,
-    campaigns: false,
+    campaigns: true,
   },
   velocity: {
     plan_name: 'velocity',
     max_clients: 15,
     max_storage_bytes: 107_374_182_400,  // 100 GB
-    max_team_members: null,
+    max_team_members: 5,
     proposals_limit: null,
     extra_client_price_inr: 500,
     branding_agency_sidebar: true,
@@ -122,8 +124,8 @@ export const PLAN_CONFIGS = {
   },
   quantum: {
     plan_name: 'quantum',
-    max_clients: 35,
-    max_storage_bytes: 536_870_912_000,
+    max_clients: 30,
+    max_storage_bytes: 322_122_547_200,  // 300 GB
     max_team_members: null,
     proposals_limit: null,
     extra_client_price_inr: 500,
@@ -183,6 +185,34 @@ async function manualOverride({ userId, fields }) {
     .update(fields)
     .eq('user_id', userId)
   if (error) throw error
+}
+
+async function deleteClient(userId) {
+  // Delete all agency clients first (cascades posts, notes, docs, meetings, invoices, etc.)
+  const { error: clientsErr } = await supabaseAdmin
+    .from('clients')
+    .delete()
+    .eq('user_id', userId)
+  if (clientsErr) throw clientsErr
+
+  // Delete agency-level records in parallel
+  // Includes proposals (agency_user_id NO ACTION) and both agency_members columns
+  const results = await Promise.all([
+    supabaseAdmin.from('agency_subscriptions').delete().eq('user_id', userId),
+    supabaseAdmin.from('agency_members').delete().eq('agency_user_id', userId),
+    supabaseAdmin.from('agency_members').delete().eq('member_user_id', userId),
+    supabaseAdmin.from('agency_invites').delete().eq('agency_user_id', userId),
+    supabaseAdmin.from('proposals').delete().eq('agency_user_id', userId),
+    supabaseAdmin.from('user_feedback').delete().eq('workspace_user_id', userId),
+    supabaseAdmin.from('user_feedback').delete().eq('submitter_user_id', userId),
+  ])
+  for (const { error } of results) {
+    if (error) throw error
+  }
+
+  // Delete the auth user last
+  const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(userId)
+  if (authErr) throw authErr
 }
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
@@ -275,6 +305,18 @@ export function useManualOverride(userId) {
   })
 }
 
+export function useDeleteClient() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (userId) => deleteClient(userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'clients', 'list'] })
+      toast.success('Client permanently deleted')
+    },
+    onError: (e) => toast.error(e.message || 'Failed to delete client'),
+  })
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export function isChurnRisk(subscription) {
@@ -293,12 +335,12 @@ export function trialDaysLeft(trialEndsAt) {
 
 export const PLANS = ['trial', 'ignite', 'velocity', 'quantum']
 
-// Binary GiB limits — must match agency_subscriptions seed values
+// Storage limits — must match PLAN_CONFIGS values
 export const PLAN_STORAGE_BYTES = {
-  trial:    21_474_836_480,   // 20 GiB
-  ignite:   21_474_836_480,   // 20 GiB
-  velocity: 107_374_182_400,  // 100 GiB
-  quantum:  536_870_912_000,  // 500 GiB
+  trial:    322_122_547_200,  // 300 GB
+  ignite:    21_474_836_480,  //  20 GB
+  velocity: 107_374_182_400,  // 100 GB
+  quantum:  322_122_547_200,  // 300 GB
 }
 
 const MiB = 1024 ** 2
