@@ -88,6 +88,7 @@ export const PLAN_CONFIGS = {
     finance_accrual: true,
     calendar_export: true,
     documents_collections: true,
+    reports: true,
     campaigns: true,
   },
   ignite: {
@@ -104,6 +105,7 @@ export const PLAN_CONFIGS = {
     finance_accrual: false,
     calendar_export: false,
     documents_collections: false,
+    reports: false,
     campaigns: true,
   },
   velocity: {
@@ -120,6 +122,7 @@ export const PLAN_CONFIGS = {
     finance_accrual: true,
     calendar_export: true,
     documents_collections: true,
+    reports: true,
     campaigns: true,
   },
   quantum: {
@@ -136,6 +139,7 @@ export const PLAN_CONFIGS = {
     finance_accrual: true,
     calendar_export: true,
     documents_collections: true,
+    reports: true,
     campaigns: true,
   },
 }
