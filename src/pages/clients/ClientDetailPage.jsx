@@ -694,7 +694,7 @@ export default function ClientDetailPage() {
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-light tracking-tight">
+              <h1 className="font-display text-3xl font-bold tracking-tight">
                 {subscription.agency_name || subscription.email}
               </h1>
               <PlanBadge plan={subscription.plan_name} />

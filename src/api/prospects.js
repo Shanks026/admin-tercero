@@ -15,7 +15,7 @@ const KEYS = {
 async function fetchProspects(filters = {}) {
   let query = supabase
     .from('admin_prospects')
-    .select('*')
+    .select('*, outreach_log:admin_outreach_log(note, contacted_at, channel)')
     .order('created_at', { ascending: false })
 
   if (filters.search) {
@@ -27,7 +27,13 @@ async function fetchProspects(filters = {}) {
 
   const { data, error } = await query
   if (error) throw error
-  return data
+
+  return data.map((p) => {
+    const logs = (p.outreach_log || []).sort(
+      (a, b) => new Date(b.contacted_at) - new Date(a.contacted_at)
+    )
+    return { ...p, latest_outreach: logs[0] ?? null, outreach_log: undefined }
+  })
 }
 
 async function fetchProspect(id) {

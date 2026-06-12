@@ -15,7 +15,7 @@ No test framework is configured yet.
 
 ## Architecture
 
-**Cadence** is a React 19 SPA (social media management platform) built with Vite, Tailwind CSS v4, and Supabase for auth/database.
+**Admin Tercero** is a React 19 SPA (internal admin portal for the Tercero platform) built with Vite, Tailwind CSS v4, and Supabase for auth/database.
 
 ### App Shell & Routing
 

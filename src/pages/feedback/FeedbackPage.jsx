@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/empty'
 import { Separator } from '@/components/ui/separator'
 import CustomTable from '@/components/misc/CustomTable'
-import { KpiCard } from '@/components/misc/KpiCard'
+import { StatBar, StatCell } from '@/components/misc/StatBar'
 import { formatDate } from '@/lib/helper'
 import { useFeedback, useUpdateFeedbackStatus, FEEDBACK_STATUSES } from '@/api/feedback'
 import { cn } from '@/lib/utils'
@@ -549,39 +549,39 @@ export default function FeedbackPage() {
 
       {/* Header */}
       <div className="space-y-1">
-        <h1 className="text-3xl font-light tracking-tight">Feedback</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight">Feedback</h1>
         <p className="text-sm text-muted-foreground font-light">Bug reports and feature suggestions from users</p>
       </div>
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard
-          title="Total Bug Reports"
+      <StatBar>
+        <StatCell
+          label="Total Bug Reports"
           value={bugs.length}
-          icon={<Bug className="h-4 w-4 text-rose-500 dark:text-rose-400" />}
-          iconBg="bg-rose-50 dark:bg-rose-500/10"
+          icon={<Bug className="h-3 w-3 text-rose-500 dark:text-rose-400" />}
+          iconBg="bg-rose-100 dark:bg-rose-500/10"
         />
-        <KpiCard
-          title="Open Bugs"
+        <StatCell
+          label="Open Bugs"
           value={openBugs.length}
-          icon={<AlertTriangle className="h-4 w-4 text-orange-500 dark:text-orange-400" />}
-          iconBg="bg-orange-50 dark:bg-orange-500/10"
           valueClass={openBugs.length > 0 ? 'text-orange-600 dark:text-orange-400' : undefined}
+          icon={<AlertTriangle className="h-3 w-3 text-orange-500 dark:text-orange-400" />}
+          iconBg="bg-orange-100 dark:bg-orange-500/10"
         />
-        <KpiCard
-          title="Critical"
+        <StatCell
+          label="Critical"
           value={criticalBugs.length}
-          icon={<AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />}
-          iconBg="bg-rose-50 dark:bg-rose-500/10"
           valueClass={criticalBugs.length > 0 ? 'text-rose-600 dark:text-rose-400' : undefined}
+          icon={<AlertTriangle className="h-3 w-3 text-rose-600 dark:text-rose-400" />}
+          iconBg="bg-rose-100 dark:bg-rose-500/10"
         />
-        <KpiCard
-          title="Suggestions"
+        <StatCell
+          label="Suggestions"
           value={suggestions.length}
-          icon={<Lightbulb className="h-4 w-4 text-purple-500 dark:text-purple-400" />}
-          iconBg="bg-purple-50 dark:bg-purple-500/10"
+          icon={<Lightbulb className="h-3 w-3 text-purple-500 dark:text-purple-400" />}
+          iconBg="bg-purple-100 dark:bg-purple-500/10"
         />
-      </div>
+      </StatBar>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

@@ -5,10 +5,9 @@ import {
   IndianRupee, Users, TrendingUp, Bug, Lightbulb,
   Zap, Gauge, Sparkles, ChevronRight, AlertTriangle,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { KpiCard } from '@/components/misc/KpiCard'
+import { StatBar, StatCell } from '@/components/misc/StatBar'
 import { ProspectStatusBadge, SourceBadge } from '@/components/misc/StatusBadge'
 import { ProspectDrawer } from '@/components/prospects/ProspectDrawer'
 import { useWelcomeGreeting } from '@/components/misc/WelcomeGreeting'
@@ -171,37 +170,36 @@ function FeedbackItem({ item }) {
   )
 }
 
-// ─── Section card wrapper ─────────────────────────────────────────────────────
+// ─── Section cell (connected-block style) ────────────────────────────────────
 
-function SectionCard({ title, subtitle, linkTo, children }) {
+function SectionCell({ title, subtitle, icon: Icon, iconClass, linkTo, children }) {
   const navigate = useNavigate()
   return (
-    <Card className="rounded-2xl border-none gap-0 bg-card/50 ring-1 ring-border/50 dark:bg-card/20 flex flex-col h-full">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <CardTitle className="text-base font-semibold">{title}</CardTitle>
-            {subtitle && (
-              <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
-            )}
+    <div className="flex-1 min-w-0 flex flex-col p-5">
+      <div className="flex items-start justify-between gap-2 mb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            {Icon && <Icon className={cn('size-4 shrink-0', iconClass)} />}
+            <p className="text-base font-semibold">{title}</p>
           </div>
-          {linkTo && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-muted-foreground gap-1 h-7 -mr-1 shrink-0"
-              onClick={() => navigate(linkTo)}
-            >
-              View all
-              <ChevronRight className="size-3" />
-            </Button>
-          )}
+          {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
         </div>
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col">
+        {linkTo && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-muted-foreground gap-1 h-7 -mr-1 shrink-0"
+            onClick={() => navigate(linkTo)}
+          >
+            View all
+            <ChevronRight className="size-3" />
+          </Button>
+        )}
+      </div>
+      <div className="flex-1 flex flex-col">
         {children}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 
@@ -258,7 +256,7 @@ export default function DashboardPage() {
       {/* ── Welcome ── */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-medium tracking-tight text-foreground">
+          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
             {greeting}
           </h1>
           <p className="text-sm text-muted-foreground font-medium">{message}</p>
@@ -269,187 +267,142 @@ export default function DashboardPage() {
       </div>
 
       {/* ── KPI row ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
-        <KpiCard
-          title="Monthly Recurring Revenue"
+      <StatBar>
+        <StatCell
+          label="Monthly Recurring Revenue"
           value={formatINR(mrr)}
-          sub={`${paidClients.length} paid client${paidClients.length !== 1 ? 's' : ''}`}
-          icon={<IndianRupee className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
-          iconBg="bg-emerald-50 dark:bg-emerald-500/10"
           valueClass="text-emerald-600 dark:text-emerald-400"
+          sub={`${paidClients.length} paid client${paidClients.length !== 1 ? 's' : ''}`}
+          icon={<IndianRupee className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
+          iconBg="bg-emerald-100 dark:bg-emerald-500/10"
         />
-        <KpiCard
-          title="Active Clients"
+        <StatCell
+          label="Active Clients"
           value={clients.length}
-          sub={churnRisks.length > 0 ? `${churnRisks.length} at churn risk` : 'All healthy'}
-          icon={<Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
-          iconBg="bg-blue-50 dark:bg-blue-500/10"
           valueClass={churnRisks.length > 0 ? 'text-orange-600 dark:text-orange-400' : undefined}
+          sub={churnRisks.length > 0 ? `${churnRisks.length} at churn risk` : 'All healthy'}
+          icon={<Users className="h-3 w-3 text-blue-600 dark:text-blue-400" />}
+          iconBg="bg-blue-100 dark:bg-blue-500/10"
         />
-        <KpiCard
-          title="Active Pipeline"
+        <StatCell
+          label="Active Pipeline"
           value={activeProspects.length}
           sub={`${allProspects.filter((p) => p.status === 'new').length} new this cycle`}
-          icon={<TrendingUp className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
-          iconBg="bg-purple-50 dark:bg-purple-500/10"
+          icon={<TrendingUp className="h-3 w-3 text-purple-600 dark:text-purple-400" />}
+          iconBg="bg-purple-100 dark:bg-purple-500/10"
         />
-        <KpiCard
-          title="Open Issues"
+        <StatCell
+          label="Open Issues"
           value={openIssues.length}
-          sub={
-            <span className="flex items-center gap-2 flex-wrap">
-              <span>{openBugCount} bug{openBugCount !== 1 ? 's' : ''}</span>
-              <span className="text-border">·</span>
-              <span>{openSuggestionCount} suggestion{openSuggestionCount !== 1 ? 's' : ''}</span>
-              {criticalBugs.length > 0 && (
-                <>
-                  <span className="text-border">·</span>
-                  <span className="text-rose-500 dark:text-rose-400 font-medium">{criticalBugs.length} critical</span>
-                </>
-              )}
-            </span>
-          }
-          icon={<Bug className="h-4 w-4 text-rose-500 dark:text-rose-400" />}
-          iconBg="bg-rose-50 dark:bg-rose-500/10"
           valueClass={criticalBugs.length > 0 ? 'text-rose-600 dark:text-rose-400' : undefined}
+          sub={`${openBugCount} bug${openBugCount !== 1 ? 's' : ''} · ${openSuggestionCount} suggestion${openSuggestionCount !== 1 ? 's' : ''}${criticalBugs.length > 0 ? ` · ${criticalBugs.length} critical` : ''}`}
+          icon={<Bug className="h-3 w-3 text-rose-500 dark:text-rose-400" />}
+          iconBg="bg-rose-100 dark:bg-rose-500/10"
         />
-      </div>
+      </StatBar>
 
       {/* ── Row 1: Pipeline | Client Mix ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-
-        {/* ── Pipeline ── */}
-        <SectionCard
-          title="Pipeline"
-          subtitle="Prospects ordered by next action date"
-          linkTo="/prospects"
-        >
-          {pipelineProspects.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center py-12">
-              <p className="text-sm text-muted-foreground">No active prospects</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {pipelineProspects.map((p) => (
-                <ProspectCard key={p.id} prospect={p} onClick={setSelectedProspect} />
-              ))}
-            </div>
-          )}
-        </SectionCard>
-
-        {/* ── Client Mix ── */}
-        <SectionCard
-          title="Client Mix"
-          subtitle="Plan distribution & health"
-          linkTo="/clients"
-        >
-          <div>
-            {planCounts.map(({ plan, count, mrr: planMrr }) => (
-              <PlanRow
-                key={plan}
-                plan={plan}
-                count={count}
-                mrr={planMrr}
-              />
-            ))}
-          </div>
-
-          {churnRisks.length > 0 && (
-            <>
-              <Separator className="my-5 border-dashed" />
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <AlertTriangle className="size-3 text-orange-500" />
-                  Churn Risk
-                </p>
-                {churnRisks.slice(0, 3).map((c) => (
-                  <div
-                    key={c.user_id}
-                    onClick={() => navigate(`/clients/${c.user_id}`)}
-                    className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-orange-200 bg-orange-50/50 dark:border-orange-500/20 dark:bg-orange-500/5 cursor-pointer hover:bg-orange-100/50 dark:hover:bg-orange-500/10 transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium truncate">{c.agency_name}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{c.email}</p>
-                    </div>
-                    <span className="shrink-0 text-[10px] font-medium text-orange-600 dark:text-orange-400">
-                      Trial ending
-                    </span>
-                  </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="rounded-xl border overflow-hidden">
+          <SectionCell
+            title="Pipeline"
+            subtitle="Prospects ordered by next action date"
+            linkTo="/prospects"
+          >
+            {pipelineProspects.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-sm text-muted-foreground">No active prospects</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {pipelineProspects.map((p) => (
+                  <ProspectCard key={p.id} prospect={p} onClick={setSelectedProspect} />
                 ))}
               </div>
-            </>
-          )}
+            )}
+          </SectionCell>
+        </div>
 
-          <div className="mt-5 pt-4 border-t border-dashed">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Total MRR</span>
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatINR(mrr)}</span>
+        <div className="rounded-xl border overflow-hidden">
+          <SectionCell
+            title="Client Mix"
+            subtitle="Plan distribution & health"
+            linkTo="/clients"
+          >
+            <div>
+              {planCounts.map(({ plan, count, mrr: planMrr }) => (
+                <PlanRow key={plan} plan={plan} count={count} mrr={planMrr} />
+              ))}
             </div>
-          </div>
-        </SectionCard>
 
+            {churnRisks.length > 0 && (
+              <>
+                <Separator className="my-5 border-dashed" />
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertTriangle className="size-3 text-orange-500" />
+                    Churn Risk
+                  </p>
+                  {churnRisks.slice(0, 3).map((c) => (
+                    <div
+                      key={c.user_id}
+                      onClick={() => navigate(`/clients/${c.user_id}`)}
+                      className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-orange-200 bg-orange-50/50 dark:border-orange-500/20 dark:bg-orange-500/5 cursor-pointer hover:bg-orange-100/50 dark:hover:bg-orange-500/10 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">{c.agency_name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{c.email}</p>
+                      </div>
+                      <span className="shrink-0 text-[10px] font-medium text-orange-600 dark:text-orange-400">
+                        Trial ending
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className="mt-5 pt-4 border-t border-dashed">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Total MRR</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatINR(mrr)}</span>
+              </div>
+            </div>
+          </SectionCell>
+        </div>
       </div>
 
       {/* ── Row 2: Feedback ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-        {/* Bug Reports */}
-        <Card className="rounded-2xl border-none gap-0 bg-card/50 ring-1 ring-border/50 dark:bg-card/20">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Bug className="size-4 text-rose-500 shrink-0" />
-                <CardTitle className="text-base font-semibold">Bug Reports</CardTitle>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-muted-foreground gap-1 h-7 -mr-1 shrink-0"
-                onClick={() => navigate('/feedback')}
-              >
-                View all
-                <ChevronRight className="size-3" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
+        <div className="rounded-xl border overflow-hidden">
+          <SectionCell
+            title="Bug Reports"
+            icon={Bug}
+            iconClass="text-rose-500"
+            linkTo="/feedback"
+          >
             {recentBugs.length === 0 ? (
               <p className="text-xs text-muted-foreground py-4 text-center">No bugs reported</p>
             ) : (
               recentBugs.map((item) => <FeedbackItem key={item.id} item={item} />)
             )}
-          </CardContent>
-        </Card>
+          </SectionCell>
+        </div>
 
-        {/* Suggestions */}
-        <Card className="rounded-2xl border-none gap-0 bg-card/50 ring-1 ring-border/50 dark:bg-card/20">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Lightbulb className="size-4 text-purple-500 dark:text-purple-400 shrink-0" />
-                <CardTitle className="text-base font-semibold">Suggestions</CardTitle>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-muted-foreground gap-1 h-7 -mr-1 shrink-0"
-                onClick={() => navigate('/feedback')}
-              >
-                View all
-                <ChevronRight className="size-3" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
+        <div className="rounded-xl border overflow-hidden">
+          <SectionCell
+            title="Suggestions"
+            icon={Lightbulb}
+            iconClass="text-purple-500 dark:text-purple-400"
+            linkTo="/feedback"
+          >
             {recentSuggestions.length === 0 ? (
               <p className="text-xs text-muted-foreground py-4 text-center">No suggestions yet</p>
             ) : (
               recentSuggestions.map((item) => <FeedbackItem key={item.id} item={item} />)
             )}
-          </CardContent>
-        </Card>
-
+          </SectionCell>
+        </div>
       </div>
 
       {/* Prospect detail drawer */}

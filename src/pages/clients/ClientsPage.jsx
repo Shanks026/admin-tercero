@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Briefcase, Search, Users, Clock, CheckCircle2, X, AlertTriangle, User,
 } from 'lucide-react'
-import { KpiCard } from '@/components/misc/KpiCard'
+import { StatBar, StatCell } from '@/components/misc/StatBar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -201,7 +201,7 @@ export default function ClientsPage() {
     <div className="p-8 max-w-350 mx-auto space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-light tracking-tight">
+          <h1 className="font-display text-3xl font-bold tracking-tight">
             Clients
             <span className="text-muted-foreground/50 ml-2 font-extralight">{clients.length}</span>
           </h1>
@@ -209,33 +209,33 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard
-          title="Total Clients"
+      <StatBar>
+        <StatCell
+          label="Total Clients"
           value={clients.length}
-          icon={<Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+          icon={<Users className="h-3 w-3 text-blue-600 dark:text-blue-400" />}
           iconBg="bg-blue-100 dark:bg-blue-500/10"
         />
-        <KpiCard
-          title="Active Trial"
+        <StatCell
+          label="Active Trial"
           value={clients.filter((c) => c.plan_name === 'trial').length}
-          icon={<Clock className="h-4 w-4 text-orange-600 dark:text-orange-400" />}
+          icon={<Clock className="h-3 w-3 text-orange-600 dark:text-orange-400" />}
           iconBg="bg-orange-100 dark:bg-orange-500/10"
         />
-        <KpiCard
-          title="Paid Plans"
+        <StatCell
+          label="Paid Plans"
           value={clients.filter((c) => c.plan_name !== 'trial').length}
-          icon={<CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+          icon={<CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
           iconBg="bg-emerald-100 dark:bg-emerald-500/10"
         />
-        <KpiCard
-          title="Churn Risk"
+        <StatCell
+          label="Churn Risk"
           value={clients.filter(isChurnRisk).length}
-          icon={<AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />}
-          iconBg="bg-rose-100 dark:bg-rose-500/10"
           valueClass={clients.filter(isChurnRisk).length > 0 ? 'text-rose-600 dark:text-rose-400' : undefined}
+          icon={<AlertTriangle className="h-3 w-3 text-rose-600 dark:text-rose-400" />}
+          iconBg="bg-rose-100 dark:bg-rose-500/10"
         />
-      </div>
+      </StatBar>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="relative w-full sm:max-w-sm">

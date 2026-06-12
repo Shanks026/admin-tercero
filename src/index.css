@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Bricolage+Grotesque:opsz,wght@12..96,200..800&display=swap');
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -44,6 +44,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: "Geist", system-ui, -apple-system, sans-serif;
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
 }
 
 :root {
@@ -79,8 +81,7 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-  --font-sans: "Google Sans", system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Geist", system-ui, -apple-system, sans-serif;
   --scrollbar-thumb:       oklch(0.55 0 0 / 0.35);
   --scrollbar-thumb-hover: oklch(0.55 0 0 / 0.55);
 }
@@ -126,12 +127,8 @@ body {
   font-family: var(--font-sans);
 }
 
-.font-google-sans {
-  font-family: "Google Sans", system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, sans-serif;
-  font-optical-sizing: auto;
-  font-style: normal;
-  font-variation-settings: "GRAD" 0;
+.font-display {
+  font-family: var(--font-display);
 }
 
 @layer base {

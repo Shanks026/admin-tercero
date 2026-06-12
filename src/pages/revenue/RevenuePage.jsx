@@ -1,8 +1,8 @@
 import {
   IndianRupee, Zap, Gauge, Sparkles, Users,
 } from 'lucide-react'
-import { KpiCard } from '@/components/misc/KpiCard'
-import { useClients, isChurnRisk, PLANS } from '@/api/clients'
+import { StatBar, StatCell } from '@/components/misc/StatBar'
+import { useClients, PLANS } from '@/api/clients'
 import { useAuth } from '@/context/AuthContext'
 
 const PLAN_PRICES = { ignite: 1999, velocity: 4999, quantum: 12999 }
@@ -14,9 +14,9 @@ function formatINR(n) {
 }
 
 const TIER_META = [
-  { plan: 'ignite',   label: 'Ignite',   price: PLAN_PRICES.ignite,   icon: Zap,      color: 'text-orange-500 dark:text-orange-400' },
-  { plan: 'velocity', label: 'Velocity', price: PLAN_PRICES.velocity, icon: Gauge,    color: 'text-blue-500 dark:text-blue-400'   },
-  { plan: 'quantum',  label: 'Quantum',  price: PLAN_PRICES.quantum,  icon: Sparkles, color: 'text-violet-500 dark:text-violet-400' },
+  { plan: 'ignite',   label: 'Ignite',   price: PLAN_PRICES.ignite,   icon: Zap,      color: 'text-orange-500 dark:text-orange-400', iconBg: 'bg-orange-100 dark:bg-orange-500/10' },
+  { plan: 'velocity', label: 'Velocity', price: PLAN_PRICES.velocity, icon: Gauge,    color: 'text-green-500 dark:text-green-400',     iconBg: 'bg-green-100 dark:bg-green-500/10'     },
+  { plan: 'quantum',  label: 'Quantum',  price: PLAN_PRICES.quantum,  icon: Sparkles, color: 'text-violet-500 dark:text-violet-400', iconBg: 'bg-violet-100 dark:bg-violet-500/10' },
 ]
 
 export default function RevenuePage() {
@@ -36,47 +36,51 @@ export default function RevenuePage() {
 
       {/* Header */}
       <div className="space-y-1">
-        <h1 className="text-3xl font-light tracking-tight">Revenue</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight">Revenue</h1>
         <p className="text-sm text-muted-foreground font-light">Monthly recurring revenue across all paid plans</p>
       </div>
 
       {/* Top-level MRR / paying clients */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <KpiCard
-          title="Monthly Recurring Revenue"
+      <StatBar>
+        <StatCell
+          label="Monthly Recurring Revenue"
           value={formatINR(mrr)}
-          sub={`${paidClients.length} paid client${paidClients.length !== 1 ? 's' : ''}`}
-          icon={<IndianRupee className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
           valueClass="text-emerald-600 dark:text-emerald-400"
+          sub={`${paidClients.length} paid client${paidClients.length !== 1 ? 's' : ''}`}
+          icon={<IndianRupee className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
+          iconBg="bg-emerald-100 dark:bg-emerald-500/10"
         />
-        <KpiCard
-          title="Paying Clients"
+        <StatCell
+          label="Paying Clients"
           value={paidClients.length}
           sub="on a paid plan"
-          icon={<Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+          icon={<Users className="h-3 w-3 text-blue-600 dark:text-blue-400" />}
+          iconBg="bg-blue-100 dark:bg-blue-500/10"
         />
-        <KpiCard
-          title="Avg Revenue Per Client"
+        <StatCell
+          label="Avg Revenue Per Client"
           value={paidClients.length > 0 ? formatINR(Math.round(mrr / paidClients.length)) : '—'}
           sub="across paid plans"
-          icon={<Users className="h-4 w-4 text-muted-foreground" />}
+          icon={<Users className="h-3 w-3 text-muted-foreground" />}
+          iconBg="bg-muted/80"
         />
-      </div>
+      </StatBar>
 
       {/* Per-tier breakdown */}
       <div className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">By Plan</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatBar>
           {tierStats.map((t) => (
-            <KpiCard
+            <StatCell
               key={t.plan}
-              title={t.label}
+              label={t.label}
               value={formatINR(t.revenue)}
               sub={`${t.count} client${t.count !== 1 ? 's' : ''} · ${formatINR(t.price)}/mo`}
-              icon={<t.icon className={`h-4 w-4 ${t.color}`} />}
+              icon={<t.icon className={`h-3 w-3 ${t.color}`} />}
+              iconBg={t.iconBg}
             />
           ))}
-        </div>
+        </StatBar>
       </div>
 
     </div>

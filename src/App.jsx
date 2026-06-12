@@ -4,6 +4,7 @@ import { AppShell } from './AppShell'
 import LoginPage from '@/pages/Login'
 import DashboardPage from '@/pages/dashboard/DashboardPage'
 import ProspectsPage from '@/pages/prospects/ProspectsPage'
+import ProspectDetailPage from '@/pages/prospects/ProspectDetailPage'
 import ClientsPage from '@/pages/clients/ClientsPage'
 import ClientDetailPage from '@/pages/clients/ClientDetailPage'
 import FeedbackPage from '@/pages/feedback/FeedbackPage'
@@ -53,6 +54,7 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="prospects" element={<ProspectsPage />} />
+        <Route path="prospects/:id" element={<ProspectDetailPage />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="clients/:userId" element={<ClientDetailPage />} />
         <Route path="feedback" element={<FeedbackPage />} />

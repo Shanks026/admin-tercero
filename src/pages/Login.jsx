@@ -57,7 +57,7 @@ export default function LoginPage({ accessDenied }) {
               }}
             />
           </div>
-          <h1 className="text-2xl font-light tracking-tight">Tercero Admin</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight">Tercero Admin</h1>
           <p className="text-sm text-muted-foreground font-light">Internal operations dashboard</p>
         </div>
 
