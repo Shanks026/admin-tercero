@@ -15,8 +15,8 @@ function formatINR(n) {
 
 const TIER_META = [
   { plan: 'ignite',   label: 'Ignite',   price: PLAN_PRICES.ignite,   icon: Zap,      color: 'text-orange-500 dark:text-orange-400', iconBg: 'bg-orange-100 dark:bg-orange-500/10' },
-  { plan: 'velocity', label: 'Velocity', price: PLAN_PRICES.velocity, icon: Gauge,    color: 'text-green-500 dark:text-green-400',     iconBg: 'bg-green-100 dark:bg-green-500/10'     },
-  { plan: 'quantum',  label: 'Quantum',  price: PLAN_PRICES.quantum,  icon: Sparkles, color: 'text-violet-500 dark:text-violet-400', iconBg: 'bg-violet-100 dark:bg-violet-500/10' },
+  { plan: 'velocity', label: 'Velocity', price: PLAN_PRICES.velocity, icon: Gauge,    color: 'text-purple-500 dark:text-purple-400',  iconBg: 'bg-purple-100 dark:bg-purple-500/10'  },
+  { plan: 'quantum',  label: 'Quantum',  price: PLAN_PRICES.quantum,  icon: Sparkles, color: 'text-pink-500 dark:text-pink-400',     iconBg: 'bg-pink-100 dark:bg-pink-500/10'     },
 ]
 
 export default function RevenuePage() {

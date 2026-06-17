@@ -6,6 +6,7 @@ import { z } from 'zod'
 import {
   ArrowLeft, Pencil, Trash2, Plus, Mail, Phone, CalendarClock,
   MessageCircle, Instagram, Users, User, History,
+  Globe, MapPin, Building2, Briefcase, Linkedin, Star, Lightbulb,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -128,96 +129,161 @@ function Field({ label, value, icon: Icon }) {
 
 // ─── Edit Contact Dialog ──────────────────────────────────────────────────────
 
+const opt = z.string().optional().or(z.literal(''))
+
 const contactSchema = z.object({
-  name:        z.string().min(1, 'Name is required'),
-  agency_name: z.string().min(1, 'Agency is required'),
-  email:       z.string().email('Invalid email'),
-  phone:       z.string().optional().or(z.literal('')),
-  website:     z.string().optional().or(z.literal('')),
-  source:      z.string().min(1),
+  name:                    z.string().min(1, 'Name is required'),
+  agency_name:             z.string().min(1, 'Agency is required'),
+  email:                   z.string().email('Invalid email'),
+  phone:                   opt,
+  website:                 opt,
+  source:                  z.string().min(1),
+  contact_title:           opt,
+  location:                opt,
+  agency_size:             opt,
+  years_in_business:       opt,
+  linkedin_url:            opt,
+  services_offered:        opt,
+  estimated_client_count:  opt,
+  industries_served:       opt,
+  lead_score:              z.coerce.number().int().min(0).max(100).optional().or(z.literal('')),
+  fit_reason:              opt,
 })
+
+const nullIfEmpty = (v) => v || null
 
 function EditContactDialog({ prospect, open, onClose }) {
   const update = useUpdateProspect()
   const form = useForm({
     resolver: zodResolver(contactSchema),
     values: {
-      name:        prospect?.name || '',
-      agency_name: prospect?.agency_name || '',
-      email:       prospect?.email || '',
-      phone:       prospect?.phone || '',
-      website:     prospect?.website || '',
-      source:      prospect?.source || 'manual',
+      name:                   prospect?.name || '',
+      agency_name:            prospect?.agency_name || '',
+      email:                  prospect?.email || '',
+      phone:                  prospect?.phone || '',
+      website:                prospect?.website || '',
+      source:                 prospect?.source || 'manual',
+      contact_title:          prospect?.contact_title || '',
+      location:               prospect?.location || '',
+      agency_size:            prospect?.agency_size || '',
+      years_in_business:      prospect?.years_in_business || '',
+      linkedin_url:           prospect?.linkedin_url || '',
+      services_offered:       prospect?.services_offered || '',
+      estimated_client_count: prospect?.estimated_client_count || '',
+      industries_served:      prospect?.industries_served || '',
+      lead_score:             prospect?.lead_score ?? '',
+      fit_reason:             prospect?.fit_reason || '',
     },
   })
 
   async function onSubmit(values) {
-    await update.mutateAsync({ id: prospect.id, ...values, phone: values.phone || null, website: values.website || null })
+    await update.mutateAsync({
+      id: prospect.id,
+      ...values,
+      phone:                  nullIfEmpty(values.phone),
+      website:                nullIfEmpty(values.website),
+      contact_title:          nullIfEmpty(values.contact_title),
+      location:               nullIfEmpty(values.location),
+      agency_size:            nullIfEmpty(values.agency_size),
+      years_in_business:      nullIfEmpty(values.years_in_business),
+      linkedin_url:           nullIfEmpty(values.linkedin_url),
+      services_offered:       nullIfEmpty(values.services_offered),
+      estimated_client_count: nullIfEmpty(values.estimated_client_count),
+      industries_served:      nullIfEmpty(values.industries_served),
+      lead_score:             values.lead_score === '' ? null : Number(values.lead_score),
+      fit_reason:             nullIfEmpty(values.fit_reason),
+    })
     onClose()
   }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit contact</DialogTitle>
-          <DialogDescription>Update contact and lead source details.</DialogDescription>
+          <DialogTitle>Edit prospect</DialogTitle>
+          <DialogDescription>Update contact, agency, and lead details.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="name" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="agency_name" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Agency</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="email" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl><Input type="email" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="phone" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+
+            {/* Contact */}
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Contact</p>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="name" render={({ field }) => (
+                  <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="contact_title" render={({ field }) => (
+                  <FormItem><FormLabel>Title / Role</FormLabel><FormControl><Input placeholder="e.g. Founder" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="email" render={({ field }) => (
+                  <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="phone" render={({ field }) => (
+                  <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="linkedin_url" render={({ field }) => (
+                  <FormItem className="col-span-2"><FormLabel>LinkedIn URL</FormLabel><FormControl><Input placeholder="https://linkedin.com/in/..." {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
             </div>
-            <FormField control={form.control} name="website" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Website</FormLabel>
-                <FormControl><Input placeholder="https://agency.com" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="source" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Source</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {SOURCES.map((s) => (
-                      <SelectItem key={s} value={s}>{SOURCE_LABELS_MAP[s] || s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
+
+            {/* Agency */}
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Agency</p>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="agency_name" render={({ field }) => (
+                  <FormItem><FormLabel>Agency Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="website" render={({ field }) => (
+                  <FormItem><FormLabel>Website</FormLabel><FormControl><Input placeholder="https://agency.com" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="location" render={({ field }) => (
+                  <FormItem><FormLabel>Location</FormLabel><FormControl><Input placeholder="e.g. Mumbai, India" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="agency_size" render={({ field }) => (
+                  <FormItem><FormLabel>Agency Size</FormLabel><FormControl><Input placeholder="e.g. 5–10 people" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="years_in_business" render={({ field }) => (
+                  <FormItem><FormLabel>Years in Business</FormLabel><FormControl><Input placeholder="e.g. 3" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="estimated_client_count" render={({ field }) => (
+                  <FormItem><FormLabel>Est. Client Count</FormLabel><FormControl><Input placeholder="e.g. 20" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="services_offered" render={({ field }) => (
+                  <FormItem><FormLabel>Services Offered</FormLabel><FormControl><Input placeholder="e.g. SEO, Social Media" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="industries_served" render={({ field }) => (
+                  <FormItem><FormLabel>Industries Served</FormLabel><FormControl><Input placeholder="e.g. F&B, Fashion" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
+            </div>
+
+            {/* Lead */}
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Lead</p>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="source" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Source</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {SOURCES.map((s) => (<SelectItem key={s} value={s}>{SOURCE_LABELS_MAP[s] || s}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="lead_score" render={({ field }) => (
+                  <FormItem><FormLabel>Lead Score (0–100)</FormLabel><FormControl><Input type="number" min={0} max={100} placeholder="e.g. 75" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="fit_reason" render={({ field }) => (
+                  <FormItem className="col-span-2"><FormLabel>Fit Reason</FormLabel><FormControl><Input placeholder="Why is this a good fit?" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
               <Button type="submit" disabled={update.isPending}>
@@ -705,22 +771,75 @@ export default function ProspectDetailPage() {
               Contact
             </SectionLabel>
             <div className="space-y-3">
-              <Field label="Contact" value={prospect.name} icon={User} />
+              <Field label="Name" value={prospect.name} icon={User} />
+              {prospect.contact_title && <Field label="Title" value={prospect.contact_title} icon={Briefcase} />}
               <Field label="Email" value={prospect.email} icon={Mail} />
               <Field label="Phone" value={prospect.phone} icon={Phone} />
+              {prospect.linkedin_url && (
+                <div className="flex items-start justify-between gap-4 py-0.5">
+                  <span className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
+                    <Linkedin className="size-3.5" /> LinkedIn
+                  </span>
+                  <a href={prospect.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary truncate">View Profile</a>
+                </div>
+              )}
               <Field label="Added" value={formatDate(prospect.created_at)} icon={CalendarClock} />
             </div>
           </section>
 
           <Separator />
 
-          {/* Notes (read-only; edit via "Update pipeline") */}
+          {/* Agency */}
+          <section className="space-y-5">
+            <SectionLabel>Agency</SectionLabel>
+            <div className="space-y-3">
+              {prospect.website ? (
+                <div className="flex items-start justify-between gap-4 py-0.5">
+                  <span className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
+                    <Globe className="size-3.5" /> Website
+                  </span>
+                  <a href={prospect.website} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary truncate">{prospect.website.replace(/^https?:\/\//, '')}</a>
+                </div>
+              ) : <Field label="Website" value={null} icon={Globe} />}
+              {prospect.location && <Field label="Location" value={prospect.location} icon={MapPin} />}
+              {prospect.agency_size && <Field label="Size" value={prospect.agency_size} icon={Building2} />}
+              {prospect.years_in_business && <Field label="Years Active" value={prospect.years_in_business} icon={CalendarClock} />}
+              {prospect.estimated_client_count && <Field label="Est. Clients" value={prospect.estimated_client_count} icon={Users} />}
+              {prospect.services_offered && <Field label="Services" value={prospect.services_offered} icon={Briefcase} />}
+              {prospect.industries_served && <Field label="Industries" value={prospect.industries_served} icon={Building2} />}
+            </div>
+          </section>
+
+          <Separator />
+
+          {/* Lead quality */}
+          <section className="space-y-5">
+            <SectionLabel>Lead Quality</SectionLabel>
+            <div className="space-y-3">
+              {prospect.lead_score != null ? (
+                <div className="flex items-start justify-between gap-4 py-0.5">
+                  <span className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
+                    <Star className="size-3.5" /> Score
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-20 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${prospect.lead_score}%` }} />
+                    </div>
+                    <span className="text-sm font-medium">{prospect.lead_score}/100</span>
+                  </div>
+                </div>
+              ) : <Field label="Score" value={null} icon={Star} />}
+              <Field label="Fit Reason" value={prospect.fit_reason} icon={Lightbulb} />
+            </div>
+          </section>
+
+          <Separator />
+
+          {/* Notes */}
           <section className="space-y-3">
             <SectionLabel>Notes</SectionLabel>
             {prospect.notes ? (
-              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                {prospect.notes}
-              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{prospect.notes}</p>
             ) : (
               <p className="text-sm text-muted-foreground/50">No notes yet.</p>
             )}

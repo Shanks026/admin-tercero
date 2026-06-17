@@ -37,7 +37,7 @@ async function fetchClients({ search, plan, superadminId } = {}) {
 }
 
 async function fetchClientDetail(userId) {
-  const [subResult, prospectResult] = await Promise.all([
+  const [subResult, prospectResult, authResult] = await Promise.all([
     supabase
       .from('agency_subscriptions')
       .select('*')
@@ -48,13 +48,22 @@ async function fetchClientDetail(userId) {
       .select('*')
       .eq('tercero_user_id', userId)
       .maybeSingle(),
+    supabaseAdmin.auth.admin.getUserById(userId),
   ])
 
   if (subResult.error) throw subResult.error
   if (!subResult.data) throw new Error('Client not found')
 
+  const auth_email = authResult.data?.user?.email ?? null
+  const auth_full_name = authResult.data?.user?.user_metadata?.full_name ?? null
+
   return {
-    subscription: subResult.data,
+    subscription: {
+      ...subResult.data,
+      auth_email,
+      auth_full_name,
+      email: subResult.data.email || auth_email,
+    },
     prospect: prospectResult.data ?? null,
   }
 }

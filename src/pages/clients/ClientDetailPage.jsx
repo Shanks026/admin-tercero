@@ -40,6 +40,7 @@ const FEATURE_FLAGS = [
   { key: 'finance_accrual', label: 'Accrual Finance' },
   { key: 'calendar_export', label: 'Calendar Export' },
   { key: 'documents_collections', label: 'Document Collections' },
+  { key: 'reports', label: 'Reports' },
   { key: 'campaigns', label: 'Campaigns' },
 ]
 
@@ -694,6 +695,19 @@ export default function ClientDetailPage() {
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
+              {(() => {
+                const name = subscription.agency_name || subscription.auth_full_name || subscription.email || ''
+                const initials = name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+                return subscription.logo_url ? (
+                  <div className="size-12 rounded-xl shrink-0 overflow-hidden ring-1 ring-border/40">
+                    <img src={subscription.logo_url} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
+                  </div>
+                ) : (
+                  <div className="size-12 rounded-xl shrink-0 bg-muted flex items-center justify-center ring-1 ring-border/40">
+                    <span className="text-sm font-semibold text-muted-foreground">{initials}</span>
+                  </div>
+                )
+              })()}
               <h1 className="font-display text-3xl font-bold tracking-tight">
                 {subscription.agency_name || subscription.email}
               </h1>

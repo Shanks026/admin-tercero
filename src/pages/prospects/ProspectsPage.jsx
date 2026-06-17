@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -7,7 +8,7 @@ import Papa from 'papaparse'
 import { toast } from 'sonner'
 import {
   Plus, Search, Upload, Users, TrendingUp, CalendarClock, CheckCircle2, X,
-  LayoutGrid, LayoutList, User, ArrowUpRight,
+  LayoutGrid, LayoutList, User, ArrowUpRight, Trash2,
   Mail, Phone, MessageCircle, Instagram,
 } from 'lucide-react'
 import { StatBar, StatCell } from '@/components/misc/StatBar'
@@ -25,13 +26,13 @@ import {
 import {
   Empty, EmptyContent, EmptyMedia, EmptyHeader, EmptyTitle, EmptyDescription,
 } from '@/components/ui/empty'
-import CustomTable from '@/components/misc/CustomTable'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   ProspectStatusBadge, SourceBadge, PROSPECT_STATUSES, SOURCES, SOURCE_LABELS_MAP,
 } from '@/components/misc/StatusBadge'
 import { formatDate } from '@/lib/helper'
 import {
-  useProspects, useCreateProspect, useBulkInsertProspects,
+  useProspects, useCreateProspect, useBulkInsertProspects, useBulkDeleteProspects,
 } from '@/api/prospects'
 
 // ─── Add Prospect Dialog ──────────────────────────────────────────────────────
@@ -138,11 +139,22 @@ function AddProspectDialog({ open, onClose }) {
 // ─── CSV Import Dialog ────────────────────────────────────────────────────────
 
 const CSV_COLUMN_MAP = {
-  name:        ['name', 'full name', 'contact name', 'contact'],
-  agency_name: ['company', 'agency', 'organization', 'business name', 'business'],
-  email:       ['email', 'email address'],
-  phone:       ['phone', 'mobile', 'phone number', 'mobile number'],
-  website:     ['website', 'website url', 'url', 'web', 'site'],
+  agency_name:             ['agency name', 'company', 'agency', 'organization', 'business name', 'business'],
+  website:                 ['website', 'website url', 'url', 'web', 'site'],
+  location:                ['location', 'city', 'address'],
+  agency_size:             ['agency size', 'size', 'company size', 'team size'],
+  years_in_business:       ['years in business', 'years', 'founded', 'established'],
+  name:                    ['contact name', 'name', 'full name', 'contact'],
+  contact_title:           ['contact title', 'title', 'position', 'role', 'job title'],
+  email:                   ['email', 'email address'],
+  phone:                   ['phone', 'mobile', 'phone number', 'mobile number'],
+  linkedin_url:            ['linkedin url', 'linkedin', 'linkedin profile'],
+  services_offered:        ['services offered', 'services', 'service'],
+  estimated_client_count:  ['estimated client count', 'client count', 'clients', 'number of clients'],
+  industries_served:       ['industries served', 'industries', 'industry', 'niche'],
+  lead_score:              ['lead score', 'score'],
+  fit_reason:              ['fit reason', 'fit', 'reason'],
+  status:                  ['status'],
 }
 
 function mapCsvRow(row, headerMap) {
@@ -258,6 +270,230 @@ const CHANNEL_OPTIONS = [
 ]
 const CHANNEL_MAP = Object.fromEntries(CHANNEL_OPTIONS.map((c) => [c.value, c]))
 
+// ─── TanStack column definitions ─────────────────────────────────────────────
+
+const PROSPECT_COLUMNS = [
+  {
+    id: 'select',
+    size: 48,
+    header: ({ table }) => (
+      <Checkbox
+        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
+        onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(v) => row.toggleSelected(!!v)}
+        aria-label="Select row"
+        onClick={(e) => e.stopPropagation()}
+      />
+    ),
+  },
+  {
+    id: 'name',
+    size: 240,
+    header: 'Name & Agency',
+    cell: ({ row: { original: p } }) => (
+      <div className="min-w-0">
+        <p className="text-sm font-medium truncate">{p.agency_name}</p>
+        <p className="text-xs text-muted-foreground truncate mt-0.5">{p.name}</p>
+      </div>
+    ),
+  },
+  {
+    id: 'contact',
+    size: 190,
+    header: 'Contact',
+    cell: ({ row: { original: p } }) => (
+      <div className="min-w-0">
+        <p className="text-xs truncate">{p.email}</p>
+        {p.phone && <p className="text-xs text-muted-foreground truncate mt-0.5">{p.phone}</p>}
+      </div>
+    ),
+  },
+  {
+    id: 'source',
+    size: 130,
+    header: 'Source',
+    cell: ({ row: { original: p } }) => <SourceBadge source={p.source} />,
+  },
+  {
+    id: 'status',
+    size: 150,
+    header: 'Status',
+    cell: ({ row: { original: p } }) => <ProspectStatusBadge status={p.status} />,
+  },
+  {
+    id: 'outreach',
+    size: 220,
+    header: 'Recent Outreach',
+    cell: ({ row: { original: p } }) => p.latest_outreach?.note ? (
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          {(() => {
+            const ch = CHANNEL_MAP[p.latest_outreach.channel]
+            const Icon = ch?.icon
+            return Icon ? <Icon className="size-3 text-muted-foreground shrink-0" /> : null
+          })()}
+          <span className="text-xs text-muted-foreground font-medium">
+            {CHANNEL_MAP[p.latest_outreach.channel]?.label || p.latest_outreach.channel}
+          </span>
+          <span className="text-muted-foreground/40 text-xs">·</span>
+          <p className="text-xs truncate">{p.latest_outreach.note}</p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {formatDate(p.latest_outreach.contacted_at, 'MMM d, yy')}
+        </p>
+      </div>
+    ) : (
+      <span className="text-xs text-muted-foreground">—</span>
+    ),
+  },
+  {
+    id: 'website',
+    size: 150,
+    header: 'Website',
+    cell: ({ row: { original: p } }) => p.website ? (
+      <span className="text-xs truncate block max-w-[130px]">{p.website}</span>
+    ) : (
+      <span className="text-xs text-muted-foreground">—</span>
+    ),
+  },
+  {
+    id: 'added',
+    size: 100,
+    header: 'Added',
+    cell: ({ row: { original: p } }) => (
+      <span className="text-xs text-muted-foreground">{formatDate(p.created_at, 'MMM d, yy')}</span>
+    ),
+  },
+]
+
+// ─── Prospects data table (list view with row selection) ──────────────────────
+
+function ProspectsDataTable({ data, isLoading, emptyState, onRowClick }) {
+  const [rowSelection, setRowSelection] = useState({})
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const bulkDelete = useBulkDeleteProspects()
+
+  const table = useReactTable({
+    data,
+    columns: PROSPECT_COLUMNS,
+    state: { rowSelection },
+    onRowSelectionChange: setRowSelection,
+    getCoreRowModel: getCoreRowModel(),
+    getRowId: (row) => row.id,
+  })
+
+  const selectedIds = Object.keys(rowSelection)
+  const selectedCount = selectedIds.length
+
+  function handleBulkDelete() {
+    bulkDelete.mutate(selectedIds, {
+      onSuccess: () => {
+        setRowSelection({})
+        setBulkDeleteOpen(false)
+      },
+    })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="rounded-xl border overflow-hidden">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4 px-4 py-3.5 border-b last:border-0 animate-pulse">
+            <div className="size-4 rounded bg-muted shrink-0" />
+            <div className="h-3.5 w-44 rounded bg-muted" />
+            <div className="h-3.5 w-28 rounded bg-muted" />
+            <div className="h-5 w-20 rounded-full bg-muted" />
+            <div className="h-3.5 flex-1 rounded bg-muted max-w-32" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (data.length === 0) return emptyState
+
+  return (
+    <div className="space-y-2">
+      {selectedCount > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border bg-muted/50">
+          <span className="text-sm font-medium">{selectedCount} selected</span>
+          <div className="flex-1" />
+          <Button variant="ghost" size="sm" onClick={() => setRowSelection({})} className="text-muted-foreground">
+            Clear
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setBulkDeleteOpen(true)}
+            className="gap-1.5"
+          >
+            <Trash2 className="size-3.5" />
+            Delete {selectedCount}
+          </Button>
+        </div>
+      )}
+
+      <div className="rounded-xl border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            {table.getHeaderGroups().map((hg) => (
+              <tr key={hg.id} className="border-b bg-muted/30">
+                {hg.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    className="px-4 py-3 text-left text-xs font-medium text-muted-foreground tracking-wide"
+                    style={{ width: header.column.columnDef.size }}
+                  >
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map((row) => (
+              <tr
+                key={row.id}
+                onClick={() => onRowClick(row.original)}
+                className="border-b last:border-0 cursor-pointer hover:bg-accent/30 transition-colors duration-150"
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id} className="px-4 py-3">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <DialogContent onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Delete {selectedCount} prospect{selectedCount !== 1 ? 's' : ''}?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete {selectedCount} prospect{selectedCount !== 1 ? 's' : ''} and all associated outreach history. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setBulkDeleteOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={bulkDelete.isPending}>
+              {bulkDelete.isPending ? 'Deleting…' : `Delete ${selectedCount}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
 // ─── Prospect card (grid view) ────────────────────────────────────────────────
 
 function ProspectCard({ item, onClick }) {
@@ -274,7 +510,7 @@ function ProspectCard({ item, onClick }) {
 
       {/* Agency + person */}
       <div className="px-6 pt-4 pb-0">
-        <p className="text-base font-bold leading-snug line-clamp-2">
+        <p className="text-lg font-bold leading-snug line-clamp-2 font-display">
           {item.agency_name || item.name}
         </p>
         <div className="flex items-center gap-1.5 mt-1.5">
@@ -359,76 +595,6 @@ export default function ProspectsPage() {
     setStatusFilter('all')
     setSourceFilter('all')
   }
-
-  const columns = [
-    {
-      header: 'Name & Agency',
-      width: '240px',
-      render: (item) => (
-        <div className="min-w-0">
-          <p className="text-sm font-medium truncate">{item.name}</p>
-          <p className="text-xs text-muted-foreground truncate mt-0.5">{item.agency_name}</p>
-        </div>
-      ),
-    },
-    {
-      header: 'Contact',
-      width: '190px',
-      render: (item) => (
-        <div className="min-w-0">
-          <p className="text-xs truncate">{item.email}</p>
-          {item.phone && (
-            <p className="text-xs text-muted-foreground truncate mt-0.5">{item.phone}</p>
-          )}
-        </div>
-      ),
-    },
-    {
-      header: 'Source',
-      width: '120px',
-      render: (item) => <SourceBadge source={item.source} />,
-    },
-    {
-      header: 'Status',
-      width: '140px',
-      render: (item) => <ProspectStatusBadge status={item.status} />,
-    },
-    {
-      header: 'Recent Outreach',
-      width: '220px',
-      render: (item) => item.latest_outreach?.note ? (
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            {(() => { const ch = CHANNEL_MAP[item.latest_outreach.channel]; const Icon = ch?.icon; return Icon ? <Icon className="size-3 text-muted-foreground shrink-0" /> : null })()}
-            <span className="text-xs text-muted-foreground font-medium">{CHANNEL_MAP[item.latest_outreach.channel]?.label || item.latest_outreach.channel}</span>
-            <span className="text-muted-foreground/40 text-xs">·</span>
-            <p className="text-xs truncate">{item.latest_outreach.note}</p>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {formatDate(item.latest_outreach.contacted_at, 'MMM d, yy')}
-          </p>
-        </div>
-      ) : (
-        <span className="text-xs text-muted-foreground">—</span>
-      ),
-    },
-    {
-      header: 'Website',
-      width: '150px',
-      render: (item) => item.website ? (
-        <span className="text-xs truncate block max-w-32.5">{item.website}</span>
-      ) : (
-        <span className="text-xs text-muted-foreground">—</span>
-      ),
-    },
-    {
-      header: 'Added',
-      width: '100px',
-      render: (item) => (
-        <span className="text-xs text-muted-foreground">{formatDate(item.created_at, 'MMM d, yy')}</span>
-      ),
-    },
-  ]
 
   const emptyState = (
     <Empty className="py-20 border border-dashed rounded-2xl bg-muted/5">
@@ -585,12 +751,11 @@ export default function ProspectsPage() {
           </div>
         )
       ) : (
-        <CustomTable
-          columns={columns}
+        <ProspectsDataTable
           data={prospects}
           isLoading={isLoading}
-          onRowClick={(item) => navigate(`/prospects/${item.id}`)}
           emptyState={emptyState}
+          onRowClick={(item) => navigate(`/prospects/${item.id}`)}
         />
       )}
 

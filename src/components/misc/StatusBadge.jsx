@@ -58,10 +58,10 @@ const FEEDBACK_STATUS = {
 }
 
 const PLAN_BADGE = {
-  trial:    'bg-orange-100 text-orange-800 dark:bg-orange-500/10 dark:text-orange-400',
-  ignite:   'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400',
+  trial:    'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400',
+  ignite:   'bg-orange-100 text-orange-800 dark:bg-orange-500/10 dark:text-orange-400',
   velocity: 'bg-purple-100 text-purple-800 dark:bg-purple-500/10 dark:text-purple-400',
-  quantum:  'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400',
+  quantum:  'bg-pink-100 text-pink-800 dark:bg-pink-500/10 dark:text-pink-400',
 }
 
 function Badge({ label, colorClass, className }) {

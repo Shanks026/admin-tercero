@@ -106,6 +106,14 @@ async function bulkInsertProspects(rows) {
   return data
 }
 
+async function bulkDeleteProspects(ids) {
+  const { error } = await supabase
+    .from('admin_prospects')
+    .delete()
+    .in('id', ids)
+  if (error) throw error
+}
+
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
 export function useProspects(filters = {}) {
@@ -188,5 +196,17 @@ export function useBulkInsertProspects() {
       toast.success(`${data.length} prospect${data.length !== 1 ? 's' : ''} imported`)
     },
     onError: (e) => toast.error(e.message || 'Import failed'),
+  })
+}
+
+export function useBulkDeleteProspects() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: bulkDeleteProspects,
+    onSuccess: (_, ids) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'prospects'] })
+      toast.success(`${ids.length} prospect${ids.length !== 1 ? 's' : ''} deleted`)
+    },
+    onError: (e) => toast.error(e.message || 'Failed to delete prospects'),
   })
 }
