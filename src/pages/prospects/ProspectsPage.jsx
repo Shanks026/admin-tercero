@@ -1,5 +1,9 @@
 import { useState, useRef } from 'react'
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table'
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
+} from '@/components/ui/sheet'
+import { Textarea } from '@/components/ui/textarea'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -8,7 +12,7 @@ import Papa from 'papaparse'
 import { toast } from 'sonner'
 import {
   Plus, Search, Upload, Users, TrendingUp, CalendarClock, CheckCircle2, X,
-  LayoutGrid, LayoutList, User, ArrowUpRight, Trash2,
+  LayoutGrid, LayoutList, User, ArrowUpRight, Trash2, StickyNote, Pencil, ChevronLeft,
   Mail, Phone, MessageCircle, Instagram,
 } from 'lucide-react'
 import { StatBar, StatCell } from '@/components/misc/StatBar'
@@ -34,6 +38,9 @@ import { formatDate } from '@/lib/helper'
 import {
   useProspects, useCreateProspect, useBulkInsertProspects, useBulkDeleteProspects,
 } from '@/api/prospects'
+import {
+  useOutreachNotes, useCreateNote, useUpdateNote, useDeleteNote,
+} from '@/api/outreachNotes'
 
 // ─── Add Prospect Dialog ──────────────────────────────────────────────────────
 
@@ -372,6 +379,181 @@ const PROSPECT_COLUMNS = [
   },
 ]
 
+// ─── Outreach Notes Sheet ─────────────────────────────────────────────────────
+
+function OutreachNotesSheet({ open, onClose }) {
+  const { data: notes = [], isLoading } = useOutreachNotes()
+  const createNote = useCreateNote()
+  const updateNote = useUpdateNote()
+  const deleteNote = useDeleteNote()
+
+  // mode: 'list' | 'edit'
+  const [mode, setMode] = useState('list')
+  const [editing, setEditing] = useState(null) // null = new note
+  const [title, setTitle] = useState('')
+  const [body, setBody] = useState('')
+
+  function openNew() {
+    setEditing(null)
+    setTitle('')
+    setBody('')
+    setMode('edit')
+  }
+
+  function openEdit(note) {
+    setEditing(note)
+    setTitle(note.title)
+    setBody(note.body || '')
+    setMode('edit')
+  }
+
+  function handleBack() {
+    setMode('list')
+    setEditing(null)
+  }
+
+  async function handleSave() {
+    if (!title.trim()) return
+    if (editing) {
+      await updateNote.mutateAsync({ id: editing.id, title: title.trim(), body: body.trim() || null })
+    } else {
+      await createNote.mutateAsync({ title: title.trim(), body: body.trim() || null })
+    }
+    setMode('list')
+  }
+
+  async function handleDelete(note, e) {
+    e.stopPropagation()
+    await deleteNote.mutateAsync(note.id)
+  }
+
+  const isSaving = createNote.isPending || updateNote.isPending
+
+  return (
+    <Sheet open={open} onOpenChange={(v) => { if (!v) { onClose(); setMode('list') } }}>
+      <SheetContent className="sm:max-w-lg p-0 gap-0 overflow-hidden">
+
+        {/* Fixed header */}
+        <SheetHeader className="px-6 py-5 border-b">
+          <div className="flex items-center gap-2 pr-8">
+            {mode === 'edit' && (
+              <Button variant="ghost" size="icon" className="size-8 -ml-1 shrink-0" onClick={handleBack}>
+                <ChevronLeft className="size-4" />
+              </Button>
+            )}
+            <SheetTitle className="text-base">
+              {mode === 'list' ? 'Outreach Notes' : editing ? 'Edit Note' : 'New Note'}
+            </SheetTitle>
+            {mode === 'list' && (
+              <Button size="sm" className="ml-auto gap-1.5" onClick={openNew}>
+                <Plus className="size-3.5" />
+                New note
+              </Button>
+            )}
+          </div>
+        </SheetHeader>
+
+        {mode === 'list' ? (
+          /* List — scrolls independently */
+          <div className="flex-1 overflow-y-auto">
+            {isLoading ? (
+              <div className="p-4 space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="rounded-xl border p-4 animate-pulse space-y-2">
+                    <div className="h-4 w-32 rounded bg-muted" />
+                    <div className="h-3 w-full rounded bg-muted" />
+                    <div className="h-3 w-3/4 rounded bg-muted" />
+                  </div>
+                ))}
+              </div>
+            ) : notes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-48 gap-3 text-center px-6">
+                <StickyNote className="size-8 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">No notes yet. Create your first outreach template.</p>
+                <Button variant="outline" size="sm" onClick={openNew} className="gap-1.5">
+                  <Plus className="size-3.5" />
+                  New note
+                </Button>
+              </div>
+            ) : (
+              <div className="p-4 space-y-2">
+                {notes.map((note) => (
+                  <div
+                    key={note.id}
+                    onClick={() => openEdit(note)}
+                    className="group rounded-xl border bg-card p-4 cursor-pointer hover:bg-accent/30 transition-colors duration-150"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <p className="text-sm font-semibold leading-snug">{note.title}</p>
+                      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7"
+                          onClick={(e) => { e.stopPropagation(); openEdit(note) }}
+                        >
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-destructive hover:text-destructive"
+                          onClick={(e) => handleDelete(note, e)}
+                          disabled={deleteNote.isPending}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                    {note.body && (
+                      <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed whitespace-pre-wrap">
+                        {note.body}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Edit form — fixed layout, no sheet-level scroll */
+          <>
+            <div className="flex-1 flex flex-col gap-5 p-6 overflow-hidden min-h-0">
+              {/* Title — fixed height */}
+              <div className="space-y-1.5 shrink-0">
+                <label className="text-sm font-medium">Title</label>
+                <Input
+                  placeholder="e.g. Instagram DM, Cold Email"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              {/* Body — fills remaining space, scrolls internally */}
+              <div className="flex-1 flex flex-col gap-1.5 min-h-0">
+                <label className="text-sm font-medium shrink-0">Body</label>
+                <Textarea
+                  placeholder="Write your outreach message here…"
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  className="flex-1 resize-none overflow-y-auto font-mono text-sm leading-relaxed"
+                />
+              </div>
+            </div>
+            {/* Fixed footer */}
+            <SheetFooter className="border-t px-6 py-4">
+              <Button variant="ghost" onClick={handleBack}>Cancel</Button>
+              <Button onClick={handleSave} disabled={!title.trim() || isSaving}>
+                {isSaving ? 'Saving…' : 'Save note'}
+              </Button>
+            </SheetFooter>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  )
+}
+
 // ─── Prospects data table (list view with row selection) ──────────────────────
 
 function ProspectsDataTable({ data, isLoading, emptyState, onRowClick }) {
@@ -579,6 +761,7 @@ export default function ProspectsPage() {
   }
   const [addOpen, setAddOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [notesOpen, setNotesOpen] = useState(false)
 
   const filters = {
     search: search || undefined,
@@ -639,6 +822,10 @@ export default function ProspectsPage() {
           <p className="text-sm text-muted-foreground font-light">Track and manage your lead pipeline</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => setNotesOpen(true)} className="gap-2">
+            <StickyNote className="size-4" />
+            Outreach Notes
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} className="gap-2">
             <Upload className="size-4" />
             Import CSV
@@ -762,6 +949,7 @@ export default function ProspectsPage() {
       {/* Dialogs */}
       <AddProspectDialog open={addOpen} onClose={() => setAddOpen(false)} />
       <CsvImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
+      <OutreachNotesSheet open={notesOpen} onClose={() => setNotesOpen(false)} />
     </div>
   )
 }
