@@ -13,7 +13,7 @@ import { toast } from 'sonner'
 import {
   Plus, Search, Upload, Users, TrendingUp, CalendarClock, CheckCircle2, X,
   LayoutGrid, LayoutList, User, ArrowUpRight, Trash2, StickyNote, Pencil, ChevronLeft,
-  Mail, Phone, MessageCircle, Instagram,
+  Mail, Phone, MessageCircle, Instagram, Link2, MapPin,
 } from 'lucide-react'
 import { StatBar, StatCell } from '@/components/misc/StatBar'
 import { Button } from '@/components/ui/button'
@@ -354,9 +354,22 @@ const PROSPECT_COLUMNS = [
   },
   {
     id: 'status',
-    size: 150,
+    size: 160,
     header: 'Status',
-    cell: ({ row: { original: p } }) => <ProspectStatusBadge status={p.status} />,
+    cell: ({ row: { original: p } }) => (
+      <div className="flex items-center gap-2">
+        <ProspectStatusBadge status={p.status} />
+        {p.tercero_user_id && (
+          <span
+            title="Linked to Tercero account"
+            className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-pink-100 text-pink-700 dark:bg-pink-500/15 dark:text-pink-400"
+          >
+            <Link2 className="size-2.5" />
+            Linked
+          </span>
+        )}
+      </div>
+    ),
   },
   {
     id: 'outreach',
@@ -713,6 +726,12 @@ function ProspectCard({ item, onClick }) {
       <div className="px-6 pt-6 pb-0 flex items-center gap-2 flex-wrap">
         <ProspectStatusBadge status={item.status} />
         {item.source && <SourceBadge source={item.source} />}
+        {item.tercero_user_id && (
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-pink-100 text-pink-700 dark:bg-pink-500/15 dark:text-pink-400">
+            <Link2 className="size-3" />
+            Linked
+          </span>
+        )}
       </div>
 
       {/* Agency + person */}
@@ -720,9 +739,17 @@ function ProspectCard({ item, onClick }) {
         <p className="text-lg font-bold leading-snug line-clamp-2 font-display">
           {item.agency_name || item.name}
         </p>
-        <div className="flex items-center gap-1.5 mt-1.5">
-          <User className="size-3.5 text-muted-foreground shrink-0" />
-          <p className="text-sm text-muted-foreground truncate">{item.name}</p>
+        <div className="flex items-center justify-between gap-3 mt-1.5">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <User className="size-3.5 text-muted-foreground shrink-0" />
+            <p className="text-sm text-muted-foreground truncate">{item.name}</p>
+          </div>
+          {item.location && (
+            <div className="flex items-center gap-1 shrink-0">
+              <MapPin className="size-3.5 text-muted-foreground shrink-0" />
+              <p className="text-sm text-muted-foreground">{item.location}</p>
+            </div>
+          )}
         </div>
       </div>
 

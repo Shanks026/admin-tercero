@@ -7,6 +7,7 @@ import {
   ArrowLeft, Pencil, Trash2, Plus, Mail, Phone, CalendarClock,
   MessageCircle, Instagram, Users, User, History,
   Globe, MapPin, Building2, Briefcase, Linkedin, Star, Lightbulb,
+  Search, CheckCircle2, ExternalLink, Link2, ArrowRight, Activity, Copy, Check,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +24,9 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
 import {
+  Tabs, TabsList, TabsTrigger, TabsContent,
+} from '@/components/ui/tabs'
+import {
   ProspectStatusBadge, SourceBadge, PROSPECT_STATUSES, PROSPECT_STATUS_LABELS_MAP,
   SOURCES, SOURCE_LABELS_MAP,
 } from '@/components/misc/StatusBadge'
@@ -30,6 +34,9 @@ import { formatDate, formatRelative } from '@/lib/helper'
 import {
   useProspect, useUpdateProspect, useDeleteProspect, useOutreachLog, useAddOutreachEntry,
 } from '@/api/prospects'
+import { useClients, useClientDetail } from '@/api/clients'
+import { useAuth } from '@/context/AuthContext'
+import { useProspectActivity, useLogActivity } from '@/api/prospectActivity'
 import { cn } from '@/lib/utils'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -50,7 +57,7 @@ const STATUS_DOT = {
   demo_scheduled: 'bg-purple-500',
   demo_done:      'bg-yellow-500',
   trial_started:  'bg-emerald-500',
-  converted:      'bg-teal-500',
+  won:            'bg-teal-500',
   dead:           'bg-gray-400',
 }
 
@@ -60,19 +67,32 @@ const STATUS_CHIP = {
   demo_scheduled: 'bg-purple-100 text-purple-800 dark:bg-purple-500/10 dark:text-purple-400',
   demo_done:      'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/10 dark:text-yellow-400',
   trial_started:  'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400',
-  converted:      'bg-teal-100 text-teal-800 dark:bg-teal-500/10 dark:text-teal-400',
+  won:            'bg-teal-100 text-teal-800 dark:bg-teal-500/10 dark:text-teal-400',
   dead:           'bg-gray-100 text-gray-600 dark:bg-gray-500/10 dark:text-gray-400',
 }
 
 // ─── Status quick-update select (colored to match status) ───────────────────────
 
-function StatusSelect({ prospect }) {
+function StatusSelect({ prospect, onWon, onDead }) {
   const update = useUpdateProspect()
+  const logActivity = useLogActivity()
   return (
     <Select
       value={prospect.status}
       onValueChange={(status) => {
-        if (status !== prospect.status) update.mutate({ id: prospect.id, status })
+        if (status === prospect.status) return
+        if (status === 'won') { onWon(); return }
+        if (status === 'dead') { onDead(); return }
+        update.mutate(
+          { id: prospect.id, status },
+          {
+            onSuccess: () => logActivity.mutate({
+              prospectId: prospect.id,
+              fromStatus: prospect.status,
+              toStatus: status,
+            }),
+          }
+        )
       }}
     >
       <SelectTrigger
@@ -124,6 +144,41 @@ function Field({ label, value, icon: Icon }) {
         {value || <span className="text-muted-foreground/50 font-normal">—</span>}
       </span>
     </div>
+  )
+}
+
+// ─── Copy Contact Button ──────────────────────────────────────────────────────
+
+function CopyContactButton({ prospect }) {
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    const fields = [
+      ['Name',     prospect.name],
+      ['Title',    prospect.contact_title],
+      ['Email',    prospect.email],
+      ['Phone',    prospect.phone],
+      ['LinkedIn', prospect.linkedin_url],
+      ['Agency',   prospect.agency_name],
+      ['Website',  prospect.website],
+      ['Location', prospect.location],
+    ]
+    const text = fields
+      .filter(([, v]) => v)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('\n')
+
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={handleCopy}>
+      {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+      {copied ? 'Copied' : 'Copy'}
+    </Button>
   )
 }
 
@@ -329,6 +384,255 @@ function DeleteProspectDialog({ prospect, open, onClose }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ─── Conversion Dialog ────────────────────────────────────────────────────────
+
+function ConversionDialog({ prospect, open, onClose }) {
+  const navigate = useNavigate()
+  const { profile } = useAuth()
+  const update = useUpdateProspect()
+  const logActivity = useLogActivity()
+  const { data: clients = [] } = useClients({ superadminId: profile?.id })
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState(null)
+
+  const filtered = clients
+    .filter((c) => {
+      if (!search) return true
+      const q = search.toLowerCase()
+      return (
+        c.agency_name?.toLowerCase().includes(q) ||
+        c.email?.toLowerCase().includes(q) ||
+        c.auth_email?.toLowerCase().includes(q)
+      )
+    })
+    .slice(0, 6)
+
+  async function handleConfirm() {
+    const prevStatus = prospect.status
+    const updates = { id: prospect.id }
+    if (prevStatus !== 'won') updates.status = 'won'
+    if (selected) updates.tercero_user_id = selected.user_id
+    await update.mutateAsync(updates)
+    if (prevStatus !== 'won') {
+      logActivity.mutate({ prospectId: prospect.id, fromStatus: prevStatus, toStatus: 'won' })
+    }
+    onClose()
+    if (selected) navigate(`/clients/${selected.user_id}`)
+  }
+
+  async function handleSkip() {
+    const prevStatus = prospect.status
+    if (prevStatus !== 'won') {
+      await update.mutateAsync({ id: prospect.id, status: 'won' })
+      logActivity.mutate({ prospectId: prospect.id, fromStatus: prevStatus, toStatus: 'won' })
+    }
+    handleClose()
+  }
+
+  function handleClose() {
+    setSearch('')
+    setSelected(null)
+    onClose()
+  }
+
+  const alreadyWon = prospect?.status === 'won'
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{alreadyWon ? 'Link to Tercero Account' : 'Deal Won!'}</DialogTitle>
+          <DialogDescription>
+            {alreadyWon
+              ? <>Search for <span className="font-medium text-foreground">{prospect?.agency_name}</span>'s Tercero account below.</>
+              : <>Link <span className="font-medium text-foreground">{prospect?.agency_name}</span> to their Tercero account, or skip and link later from the Details tab.</>
+            }
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search clients by name or email…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-9 text-sm"
+              autoFocus
+            />
+          </div>
+
+          {filtered.length > 0 ? (
+            <div className="rounded-xl border overflow-hidden divide-y max-h-56 overflow-y-auto">
+              {filtered.map((client) => {
+                const name = client.agency_name || client.auth_full_name || client.email
+                const email = client.email || client.auth_email
+                const initials = (name || '?').charAt(0).toUpperCase()
+                const isSelected = selected?.user_id === client.user_id
+                return (
+                  <button
+                    key={client.user_id}
+                    type="button"
+                    onClick={() => setSelected(isSelected ? null : client)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
+                      isSelected ? 'bg-primary/5' : 'hover:bg-accent/30',
+                    )}
+                  >
+                    <div className="size-8 rounded-lg shrink-0 overflow-hidden bg-muted flex items-center justify-center ring-1 ring-border/40">
+                      {client.logo_url ? (
+                        <img src={client.logo_url} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none' }} />
+                      ) : (
+                        <span className="text-xs font-semibold text-muted-foreground">{initials}</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{email}</p>
+                    </div>
+                    {isSelected && <CheckCircle2 className="size-4 text-primary shrink-0" />}
+                  </button>
+                )
+              })}
+            </div>
+          ) : search ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No clients found</p>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-3">
+              Type to search existing clients{alreadyWon ? '.' : ', or skip to link later.'}
+            </p>
+          )}
+        </div>
+
+        <DialogFooter>
+          {!alreadyWon && (
+            <Button variant="ghost" onClick={handleSkip} disabled={update.isPending}>
+              Skip for now
+            </Button>
+          )}
+          {alreadyWon && (
+            <Button variant="ghost" onClick={handleClose}>
+              Cancel
+            </Button>
+          )}
+          <Button onClick={handleConfirm} disabled={update.isPending || (alreadyWon && !selected)}>
+            {update.isPending ? 'Saving…' : alreadyWon ? 'Link account' : selected ? 'Link & mark won' : 'Mark as won'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Loss Reason Dialog ───────────────────────────────────────────────────────
+
+function LossReasonDialog({ prospect, open, onClose }) {
+  const update = useUpdateProspect()
+  const logActivity = useLogActivity()
+  const [reason, setReason] = useState('')
+
+  async function handleConfirm() {
+    await update.mutateAsync({ id: prospect.id, status: 'dead' })
+    logActivity.mutate({
+      prospectId: prospect.id,
+      fromStatus: prospect.status,
+      toStatus: 'dead',
+      note: reason || null,
+    })
+    setReason('')
+    onClose()
+  }
+
+  function handleClose() {
+    setReason('')
+    onClose()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Why did this deal fall through?</DialogTitle>
+          <DialogDescription>
+            Optional — helps track where prospects are lost.
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
+          placeholder="e.g. Price too high, went with a competitor, no response…"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          className="resize-none h-24"
+        />
+        <DialogFooter>
+          <Button variant="ghost" onClick={handleConfirm} disabled={update.isPending}>
+            Skip
+          </Button>
+          <Button variant="destructive" onClick={handleConfirm} disabled={update.isPending}>
+            {update.isPending ? 'Saving…' : 'Mark as Dead'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Activity tab ─────────────────────────────────────────────────────────────
+
+function ActivityTab({ prospect }) {
+  const { data: activities = [], isLoading } = useProspectActivity(prospect.id)
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3 pt-6">
+        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
+      </div>
+    )
+  }
+
+  if (activities.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed py-16 flex flex-col items-center justify-center text-center gap-2 mt-6">
+        <Activity className="size-5 text-muted-foreground/50" />
+        <p className="text-sm text-muted-foreground">No activity recorded yet.</p>
+        <p className="text-xs text-muted-foreground/60">Status changes will appear here.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative pl-6 pt-6">
+      <div className="absolute left-[7px] top-7 bottom-1.5 w-px bg-border" />
+      <div className="space-y-4">
+        {activities.map((entry) => (
+          <div key={entry.id} className="relative">
+            <div className="absolute -left-6 top-2.5 size-3.5 rounded-full bg-background border-2 border-primary flex items-center justify-center">
+              <div className="size-1 rounded-full bg-primary" />
+            </div>
+            <div className="rounded-xl border bg-card px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <ProspectStatusBadge status={entry.from_status} />
+                  <ArrowRight className="size-3 text-muted-foreground shrink-0" />
+                  <ProspectStatusBadge status={entry.to_status} />
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {formatRelative(entry.created_at)}
+                </span>
+              </div>
+              {entry.note && (
+                <p className="text-sm text-muted-foreground leading-relaxed">{entry.note}</p>
+              )}
+              <p className="text-xs text-muted-foreground/60">
+                {formatDate(entry.created_at, 'MMM d, yyyy · h:mm a')}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -689,13 +993,28 @@ function PageSkeleton() {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+const TAB_TRIGGER_CLASS = cn(
+  'relative rounded-none bg-transparent px-0 pb-3 pt-0',
+  'text-[13px] font-medium transition-none shadow-none',
+  'border-b-2 border-transparent text-muted-foreground',
+  'flex-none w-fit gap-2',
+  'data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent',
+  'data-[state=active]:text-black dark:data-[state=active]:text-white',
+  'data-[state=active]:border-black dark:data-[state=active]:border-white',
+  'data-[state=active]:shadow-none data-[state=active]:border-x-0 data-[state=active]:border-t-0',
+  'focus-visible:ring-0',
+)
+
 export default function ProspectDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [conversionOpen, setConversionOpen] = useState(false)
+  const [lossOpen, setLossOpen] = useState(false)
 
   const { data: prospect, isLoading, isError } = useProspect(id)
+  const { data: linkedClient } = useClientDetail(prospect?.tercero_user_id)
 
   if (isLoading) return <PageSkeleton />
 
@@ -732,7 +1051,11 @@ export default function ProspectDetailPage() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            <StatusSelect prospect={prospect} />
+            <StatusSelect
+              prospect={prospect}
+              onWon={() => setConversionOpen(true)}
+              onDead={() => setLossOpen(true)}
+            />
             <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditOpen(true)}>
               <Pencil className="size-3.5" />
               Edit
@@ -748,108 +1071,182 @@ export default function ProspectDetailPage() {
       {/* Summary bar */}
       <SummaryBar prospect={prospect} />
 
-      {/* Body: outreach | contact + pipeline */}
-      <div className="grid grid-cols-3 gap-x-12 gap-y-10 items-start pt-2">
-
-        {/* Left column: outreach + pipeline forms */}
-        <div className="col-span-2">
-          <ActivityPanel prospect={prospect} />
+      {/* Link hint — shown when won but not yet linked */}
+      {prospect.status === 'won' && !prospect.tercero_user_id && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed px-4 py-3">
+          <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+            <Link2 className="size-4 shrink-0" />
+            Not yet linked to a Tercero account.
+          </div>
+          <Button size="sm" variant="outline" className="gap-1.5 h-7 shrink-0" onClick={() => setConversionOpen(true)}>
+            Link account
+          </Button>
         </div>
+      )}
 
-        {/* Right column */}
-        <div className="space-y-8">
-          {/* Contact */}
-          <section className="space-y-5">
-            <SectionLabel
-              action={
-                <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs -mr-2" onClick={() => setEditOpen(true)}>
-                  <Pencil className="size-3" />
-                  Edit
-                </Button>
-              }
-            >
-              Contact
-            </SectionLabel>
-            <div className="space-y-3">
-              <Field label="Name" value={prospect.name} icon={User} />
-              {prospect.contact_title && <Field label="Title" value={prospect.contact_title} icon={Briefcase} />}
-              <Field label="Email" value={prospect.email} icon={Mail} />
-              <Field label="Phone" value={prospect.phone} icon={Phone} />
-              {prospect.linkedin_url && (
-                <div className="flex items-start justify-between gap-4 py-0.5">
-                  <span className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
-                    <Linkedin className="size-3.5" /> LinkedIn
-                  </span>
-                  <a href={prospect.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary truncate">View Profile</a>
-                </div>
-              )}
-              <Field label="Added" value={formatDate(prospect.created_at)} icon={CalendarClock} />
-            </div>
-          </section>
+      {/* Tabs */}
+      <Tabs defaultValue="details">
+        <TabsList className="bg-transparent h-auto w-full justify-start rounded-none p-0 gap-8 border-b border-border/40">
+          <TabsTrigger value="details" className={TAB_TRIGGER_CLASS}>Details</TabsTrigger>
+          <TabsTrigger value="outreach" className={TAB_TRIGGER_CLASS}>Outreach</TabsTrigger>
+        </TabsList>
 
-          <Separator />
+        {/* ── Details ── */}
+        <TabsContent value="details" className="mt-8 outline-none focus-visible:ring-0 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:duration-300">
+          <div className="grid grid-cols-2 gap-x-16 gap-y-10 items-start">
 
-          {/* Agency */}
-          <section className="space-y-5">
-            <SectionLabel>Agency</SectionLabel>
-            <div className="space-y-3">
-              {prospect.website ? (
-                <div className="flex items-start justify-between gap-4 py-0.5">
-                  <span className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
-                    <Globe className="size-3.5" /> Website
-                  </span>
-                  <a href={prospect.website} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary truncate">{prospect.website.replace(/^https?:\/\//, '')}</a>
-                </div>
-              ) : <Field label="Website" value={null} icon={Globe} />}
-              {prospect.location && <Field label="Location" value={prospect.location} icon={MapPin} />}
-              {prospect.agency_size && <Field label="Size" value={prospect.agency_size} icon={Building2} />}
-              {prospect.years_in_business && <Field label="Years Active" value={prospect.years_in_business} icon={CalendarClock} />}
-              {prospect.estimated_client_count && <Field label="Est. Clients" value={prospect.estimated_client_count} icon={Users} />}
-              {prospect.services_offered && <Field label="Services" value={prospect.services_offered} icon={Briefcase} />}
-              {prospect.industries_served && <Field label="Industries" value={prospect.industries_served} icon={Building2} />}
-            </div>
-          </section>
-
-          <Separator />
-
-          {/* Lead quality */}
-          <section className="space-y-5">
-            <SectionLabel>Lead Quality</SectionLabel>
-            <div className="space-y-3">
-              {prospect.lead_score != null ? (
-                <div className="flex items-start justify-between gap-4 py-0.5">
-                  <span className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
-                    <Star className="size-3.5" /> Score
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-20 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${prospect.lead_score}%` }} />
+            {/* Left: Contact + Agency */}
+            <div className="space-y-8">
+              <section className="space-y-5">
+                <SectionLabel
+                  action={
+                    <div className="flex items-center gap-1">
+                      <CopyContactButton prospect={prospect} />
+                      <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs -mr-2" onClick={() => setEditOpen(true)}>
+                        <Pencil className="size-3" />
+                        Edit
+                      </Button>
                     </div>
-                    <span className="text-sm font-medium">{prospect.lead_score}/100</span>
-                  </div>
+                  }
+                >
+                  Contact
+                </SectionLabel>
+                <div className="space-y-3">
+                  <Field label="Name" value={prospect.name} icon={User} />
+                  {prospect.contact_title && <Field label="Title" value={prospect.contact_title} icon={Briefcase} />}
+                  <Field label="Email" value={prospect.email} icon={Mail} />
+                  <Field label="Phone" value={prospect.phone} icon={Phone} />
+                  {prospect.linkedin_url && (
+                    <div className="flex items-start justify-between gap-4 py-0.5">
+                      <span className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
+                        <Linkedin className="size-3.5" /> LinkedIn
+                      </span>
+                      <a href={prospect.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary truncate">View Profile</a>
+                    </div>
+                  )}
+                  <Field label="Added" value={formatDate(prospect.created_at)} icon={CalendarClock} />
                 </div>
-              ) : <Field label="Score" value={null} icon={Star} />}
-              <Field label="Fit Reason" value={prospect.fit_reason} icon={Lightbulb} />
+              </section>
+
+              <Separator />
+
+              <section className="space-y-5">
+                <SectionLabel>Agency</SectionLabel>
+                <div className="space-y-3">
+                  {prospect.website ? (
+                    <div className="flex items-start justify-between gap-4 py-0.5">
+                      <span className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
+                        <Globe className="size-3.5" /> Website
+                      </span>
+                      <a href={/^https?:\/\//i.test(prospect.website) ? prospect.website : `https://${prospect.website}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary truncate">{prospect.website.replace(/^https?:\/\//i, '')}</a>
+                    </div>
+                  ) : <Field label="Website" value={null} icon={Globe} />}
+                  {prospect.location && <Field label="Location" value={prospect.location} icon={MapPin} />}
+                  {prospect.agency_size && <Field label="Size" value={prospect.agency_size} icon={Building2} />}
+                  {prospect.years_in_business && <Field label="Years Active" value={prospect.years_in_business} icon={CalendarClock} />}
+                  {prospect.estimated_client_count && <Field label="Est. Clients" value={prospect.estimated_client_count} icon={Users} />}
+                  {prospect.services_offered && <Field label="Services" value={prospect.services_offered} icon={Briefcase} />}
+                  {prospect.industries_served && <Field label="Industries" value={prospect.industries_served} icon={Building2} />}
+                </div>
+              </section>
             </div>
-          </section>
 
-          <Separator />
+            {/* Right: Lead Quality + Linked Client + Notes */}
+            <div className="space-y-8">
+              <section className="space-y-5">
+                <SectionLabel>Lead Quality</SectionLabel>
+                <div className="space-y-3">
+                  {prospect.lead_score != null ? (
+                    <div className="flex items-start justify-between gap-4 py-0.5">
+                      <span className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
+                        <Star className="size-3.5" /> Score
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-20 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${prospect.lead_score}%` }} />
+                        </div>
+                        <span className="text-sm font-medium">{prospect.lead_score}/100</span>
+                      </div>
+                    </div>
+                  ) : <Field label="Score" value={null} icon={Star} />}
+                  <Field label="Fit Reason" value={prospect.fit_reason} icon={Lightbulb} />
+                </div>
+              </section>
 
-          {/* Notes */}
-          <section className="space-y-3">
-            <SectionLabel>Notes</SectionLabel>
-            {prospect.notes ? (
-              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{prospect.notes}</p>
-            ) : (
-              <p className="text-sm text-muted-foreground/50">No notes yet.</p>
-            )}
-          </section>
-        </div>
-      </div>
+              {prospect.status === 'won' && (
+                <>
+                  <Separator />
+                  <section className="space-y-5">
+                    <SectionLabel>Linked Client</SectionLabel>
+                    {linkedClient ? (
+                      <div className="rounded-xl border bg-card p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {linkedClient.subscription.agency_name || linkedClient.subscription.email}
+                            </p>
+                            <p className="text-xs text-muted-foreground capitalize">
+                              {linkedClient.subscription.plan_name}
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 h-7 shrink-0"
+                            onClick={() => navigate(`/clients/${prospect.tercero_user_id}`)}
+                          >
+                            <ExternalLink className="size-3.5" />
+                            View Client
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 w-full"
+                        onClick={() => setConversionOpen(true)}
+                      >
+                        <Link2 className="size-3.5" />
+                        Link to Tercero account
+                      </Button>
+                    )}
+                  </section>
+                </>
+              )}
+
+              <Separator />
+
+              <section className="space-y-3">
+                <SectionLabel>Notes</SectionLabel>
+                {prospect.notes ? (
+                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{prospect.notes}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground/50">No notes yet.</p>
+                )}
+              </section>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ── Outreach + Activity ── */}
+        <TabsContent value="outreach" className="mt-8 outline-none focus-visible:ring-0 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:duration-300">
+          <div className="flex gap-10 items-start">
+            <div className="flex-[65] min-w-0">
+              <ActivityPanel prospect={prospect} />
+            </div>
+            <div className="flex-[35] min-w-0">
+              <ActivityTab prospect={prospect} />
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Dialogs */}
       <EditContactDialog prospect={prospect} open={editOpen} onClose={() => setEditOpen(false)} />
       <DeleteProspectDialog prospect={prospect} open={deleteOpen} onClose={() => setDeleteOpen(false)} />
+      <ConversionDialog prospect={prospect} open={conversionOpen} onClose={() => setConversionOpen(false)} />
+      <LossReasonDialog prospect={prospect} open={lossOpen} onClose={() => setLossOpen(false)} />
     </div>
   )
 }

@@ -65,37 +65,34 @@ function ActionBadge({ dateStr }) {
 // ─── Prospect action card (meeting-style) ─────────────────────────────────────
 
 function ProspectCard({ prospect, onClick }) {
-  const date = prospect.next_action_date
-    ? new Date(prospect.next_action_date)
-    : new Date(prospect.created_at)
-  const month = date.toLocaleDateString('en-US', { month: 'short' })
-  const day = date.getDate()
+  const initials = (prospect.agency_name || prospect.name || '?')
+    .split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+  const dateStr = prospect.next_action_date || prospect.created_at
 
   return (
     <div
       onClick={() => onClick(prospect)}
-      className="flex items-center gap-3 py-3 px-3 border-b border-dashed border-border/50 last:border-0 hover:bg-accent/20 cursor-pointer transition-colors duration-150 rounded-lg px-1"
+      className="flex items-center gap-4 py-4 px-2 border-b border-dashed border-border/50 last:border-0 hover:bg-accent/20 cursor-pointer transition-colors duration-150 rounded-lg"
     >
-      {/* Date block */}
-      <div className="shrink-0 w-12 h-12 rounded-lg bg-muted flex flex-col items-center justify-center">
-        <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest leading-none">
-          {month}
-        </span>
-        <span className="text-sm font-bold text-foreground leading-none mt-1">
-          {day}
-        </span>
+      {/* Initials avatar */}
+      <div className="shrink-0 size-9 rounded-full bg-muted flex items-center justify-center">
+        <span className="text-xs font-medium text-muted-foreground">{initials}</span>
       </div>
 
       {/* Name + agency */}
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold truncate leading-tight">{prospect.name}</p>
-        <p className="text-xs text-muted-foreground truncate mt-0.5">{prospect.agency_name}</p>
+        <p className="text-sm font-medium truncate leading-tight">{prospect.agency_name || prospect.name}</p>
+        <p className="text-xs text-muted-foreground truncate mt-0.5">{prospect.name}</p>
       </div>
 
-      {/* Badges */}
-      <div className="flex items-center gap-1.5 shrink-0">
-        <ActionBadge dateStr={prospect.next_action_date} />
+      {/* Status + date */}
+      <div className="flex flex-col items-end gap-1 shrink-0">
         <ProspectStatusBadge status={prospect.status} />
+        {dateStr && (
+          <span className="text-[10px] text-muted-foreground">
+            {formatDate(dateStr, 'MMM d, yyyy')}
+          </span>
+        )}
       </div>
     </div>
   )
@@ -221,7 +218,7 @@ export default function DashboardPage() {
   const paidClients = clients.filter((c) => PLAN_PRICES[c.plan_name])
   const mrr = paidClients.reduce((s, c) => s + (PLAN_PRICES[c.plan_name] || 0), 0)
 
-  const activeProspects = allProspects.filter((p) => !['converted', 'dead'].includes(p.status))
+  const activeProspects = allProspects.filter((p) => !['won', 'dead'].includes(p.status))
   const openIssues = feedback.filter((f) => ['received', 'open', 'in_progress'].includes(f.status))
   const openBugCount = openIssues.filter((f) => f.type === 'bug_report').length
   const openSuggestionCount = openIssues.filter((f) => f.type === 'suggestion').length
@@ -235,7 +232,7 @@ export default function DashboardPage() {
       if (!b.next_action_date) return -1
       return new Date(a.next_action_date) - new Date(b.next_action_date)
     })
-    .slice(0, 6)
+    .slice(0, 3)
 
   // ── Client plan breakdown ─────────────────────────────────────────────────
   const planCounts = PLAN_META.map(({ plan }) => ({
@@ -314,10 +311,20 @@ export default function DashboardPage() {
                 <p className="text-sm text-muted-foreground">No active prospects</p>
               </div>
             ) : (
-              <div className="space-y-1">
-                {pipelineProspects.map((p) => (
-                  <ProspectCard key={p.id} prospect={p} onClick={setSelectedProspect} />
-                ))}
+              <div>
+                <div className="space-y-1">
+                  {pipelineProspects.map((p) => (
+                    <ProspectCard key={p.id} prospect={p} onClick={setSelectedProspect} />
+                  ))}
+                </div>
+                {activeProspects.length > 3 && (
+                  <button
+                    onClick={() => navigate('/prospects')}
+                    className="w-full mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors text-center py-1.5"
+                  >
+                    +{activeProspects.length - 3} more
+                  </button>
+                )}
               </div>
             )}
           </SectionCell>

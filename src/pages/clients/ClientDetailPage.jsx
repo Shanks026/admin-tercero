@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Building2, AlertTriangle,
   Users, Clock, MessageSquare, RefreshCw, Settings2, Trash2,
+  CheckCircle2, Circle, ClipboardList,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -25,6 +26,7 @@ import {
   useDeleteClient, isChurnRisk, trialDaysLeft, PLANS,
 } from '@/api/clients'
 import { PROSPECT_STATUSES } from '@/components/misc/StatusBadge'
+import { useClientOnboarding } from '@/api/onboarding'
 import { cn } from '@/lib/utils'
 
 const CHANNEL_LABELS = {
@@ -635,6 +637,82 @@ function OutreachTab({ prospectId }) {
   )
 }
 
+const ONBOARDING_STEPS = [
+  { key: 'profile_complete',       label: 'Agency profile set up',       description: 'Agency name and logo added' },
+  { key: 'first_client_added',     label: 'First client added',           description: 'At least one client in their CRM' },
+  { key: 'first_prospect_added',   label: 'First prospect added',         description: 'Using the prospects pipeline' },
+  { key: 'first_team_member_added',label: 'Team member invited',          description: 'At least one team member added' },
+  { key: 'first_proposal_created', label: 'First proposal created',       description: 'Proposals feature in use' },
+  { key: 'first_post_created',     label: 'First deliverable created',    description: 'Content created for a client' },
+]
+
+function OnboardingTab({ userId }) {
+  const { data, isLoading } = useClientOnboarding(userId)
+
+  if (isLoading) {
+    return (
+      <div className="pt-6 space-y-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-14 rounded-xl" />
+        ))}
+      </div>
+    )
+  }
+
+  const completed = data ? ONBOARDING_STEPS.filter((s) => data[s.key]).length : 0
+  const total = ONBOARDING_STEPS.length
+
+  return (
+    <div className="pt-6 space-y-6">
+      {/* Progress */}
+      <div className="flex items-center gap-4">
+        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+          <div
+            className={cn(
+              'h-full rounded-full transition-all',
+              completed === total ? 'bg-emerald-500' : 'bg-primary'
+            )}
+            style={{ width: `${(completed / total) * 100}%` }}
+          />
+        </div>
+        <span className={cn(
+          'text-sm font-medium shrink-0',
+          completed === total ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+        )}>
+          {completed}/{total} complete
+        </span>
+      </div>
+
+      {/* Steps */}
+      <div className="space-y-2">
+        {ONBOARDING_STEPS.map((step) => {
+          const done = data?.[step.key] ?? false
+          return (
+            <div
+              key={step.key}
+              className={cn(
+                'flex items-center gap-4 rounded-xl border px-4 py-3.5 transition-colors',
+                done ? 'bg-emerald-50/50 border-emerald-200/60 dark:bg-emerald-500/5 dark:border-emerald-500/20' : 'bg-card'
+              )}
+            >
+              {done
+                ? <CheckCircle2 className="size-5 text-emerald-500 shrink-0" />
+                : <Circle className="size-5 text-muted-foreground/30 shrink-0" />
+              }
+              <div className="min-w-0">
+                <p className={cn('text-sm font-medium', done && 'text-emerald-700 dark:text-emerald-400')}>
+                  {step.label}
+                </p>
+                <p className="text-xs text-muted-foreground">{step.description}</p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function FeedbackTab() {
   return (
     <div className="pt-6 text-sm text-muted-foreground italic">
@@ -680,6 +758,7 @@ export default function ClientDetailPage() {
   const TABS = [
     { key: 'profile', label: 'Profile', icon: Building2 },
     { key: 'subscription', label: 'Subscription', icon: Clock },
+    { key: 'onboarding', label: 'Onboarding', icon: ClipboardList },
     { key: 'outreach', label: 'Outreach History', icon: Users },
     { key: 'feedback', label: 'Feedback', icon: MessageSquare },
   ]
@@ -795,6 +874,10 @@ export default function ClientDetailPage() {
 
         <TabsContent value="subscription" className="mt-2 focus-visible:ring-0 outline-none data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:duration-300">
           <SubscriptionTab subscription={subscription} userId={userId} />
+        </TabsContent>
+
+        <TabsContent value="onboarding" className="mt-2 focus-visible:ring-0 outline-none data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:duration-300">
+          <OnboardingTab userId={userId} />
         </TabsContent>
 
         <TabsContent value="outreach" className="mt-2 focus-visible:ring-0 outline-none data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:duration-300">

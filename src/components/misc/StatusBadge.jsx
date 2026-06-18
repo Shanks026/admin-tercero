@@ -6,7 +6,7 @@ const PROSPECT_STATUS = {
   demo_scheduled: 'bg-purple-100 text-purple-800 dark:bg-purple-500/10 dark:text-purple-400',
   demo_done:      'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/10 dark:text-yellow-400',
   trial_started:  'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400',
-  converted:      'bg-teal-100 text-teal-800 dark:bg-teal-500/10 dark:text-teal-400',
+  won:            'bg-teal-100 text-teal-800 dark:bg-teal-500/10 dark:text-teal-400',
   dead:           'bg-gray-100 text-gray-600 dark:bg-gray-500/10 dark:text-gray-400',
 }
 
@@ -16,7 +16,7 @@ const PROSPECT_STATUS_LABELS = {
   demo_scheduled: 'Demo Scheduled',
   demo_done:      'Demo Done',
   trial_started:  'Trial Started',
-  converted:      'Converted',
+  won:            'Won',
   dead:           'Dead',
 }
 

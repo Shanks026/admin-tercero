@@ -21,9 +21,9 @@ export function StatCell({ label, value, valueClass, sub, icon, iconBg }) {
   return (
     <div className="flex-1 min-w-35 px-5 py-3.5 flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-xs text-muted-foreground mb-1.5">{label}</p>
+        <p className="text-xs text-muted-foreground mb-3">{label}</p>
         <p className={cn('text-2xl font-bold tracking-tight', valueClass)}>{value}</p>
-        {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+        {sub && <p className="text-xs text-muted-foreground mt-2">{sub}</p>}
       </div>
       {icon && (
         <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full', iconBg ?? 'bg-muted/80')}>
