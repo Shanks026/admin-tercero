@@ -56,7 +56,7 @@ function ClientCard({ item, onClick }) {
     .split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
   const status = subscriptionStatus(item)
   const endsAt = item.plan_name === 'trial' ? item.trial_ends_at : item.subscription_ends_at
-  const days = endsAt ? Math.ceil((new Date(endsAt) - new Date()) / (1000 * 60 * 60 * 24)) : null
+  const days = endsAt ? Math.floor((new Date(endsAt) - new Date()) / (1000 * 60 * 60 * 24)) : null
   const expired = days !== null && days < 0
   const risk = isChurnRisk(item)
   const s = storageDisplay(item.current_storage_used, item.max_storage_bytes, item.plan_name)
@@ -142,7 +142,7 @@ function ExpiresCell({ client }) {
   const endsAt = client.plan_name === 'trial' ? client.trial_ends_at : client.subscription_ends_at
   if (!endsAt) return <span className="text-xs text-muted-foreground">—</span>
 
-  const days = Math.ceil((new Date(endsAt) - new Date()) / (1000 * 60 * 60 * 24))
+  const days = Math.floor((new Date(endsAt) - new Date()) / (1000 * 60 * 60 * 24))
   const expired = days < 0
   const risk = isChurnRisk(client)
 

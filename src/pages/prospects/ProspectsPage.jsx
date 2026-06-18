@@ -178,6 +178,13 @@ function mapCsvRow(row, headerMap) {
   return result
 }
 
+function parseLeadScore(val) {
+  if (!val) return null
+  const n = parseInt(val, 10)
+  if (!isNaN(n)) return n
+  return { high: 80, medium: 50, low: 20 }[val.toLowerCase()] ?? null
+}
+
 function CsvImportDialog({ open, onClose }) {
   const [source, setSource] = useState('manual')
   const [preview, setPreview] = useState(null)
@@ -198,7 +205,25 @@ function CsvImportDialog({ open, onClose }) {
         results.data.forEach((row) => {
           const m = mapCsvRow(row, headerMap)
           if (!m.email) { skipped++; return }
-          mapped.push({ name: m.name || m.email.split('@')[0], agency_name: m.agency_name || 'Unknown', email: m.email, phone: m.phone || null, source })
+          mapped.push({
+            name:                    m.name || m.email.split('@')[0],
+            agency_name:             m.agency_name || 'Unknown',
+            email:                   m.email,
+            phone:                   m.phone || null,
+            website:                 m.website || null,
+            location:                m.location || null,
+            agency_size:             m.agency_size || null,
+            years_in_business:       m.years_in_business || null,
+            contact_title:           m.contact_title || null,
+            linkedin_url:            m.linkedin_url || null,
+            services_offered:        m.services_offered || null,
+            estimated_client_count:  m.estimated_client_count || null,
+            industries_served:       m.industries_served || null,
+            lead_score:              parseLeadScore(m.lead_score),
+            fit_reason:              m.fit_reason || null,
+            status:                  m.status ? m.status.toLowerCase() : 'new',
+            source,
+          })
         })
         setPreview({ rows: mapped, skipped, filename: file.name })
       },

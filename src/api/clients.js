@@ -15,7 +15,7 @@ async function fetchClients({ search, plan, superadminId } = {}) {
   if (error) throw error
 
   let results = (data || []).filter(
-    (s) => s.user_id !== superadminId && s.auth_email !== 'winterworksbusiness@gmail.com'
+    (s) => s.user_id !== superadminId && s.auth_email !== 'hello@tercerospace.com'
   )
 
   if (plan && plan !== 'all') {
@@ -343,7 +343,7 @@ export function isChurnRisk(subscription) {
 
 export function trialDaysLeft(trialEndsAt) {
   if (!trialEndsAt) return null
-  return Math.ceil((new Date(trialEndsAt) - new Date()) / (1000 * 60 * 60 * 24))
+  return Math.floor((new Date(trialEndsAt) - new Date()) / (1000 * 60 * 60 * 24))
 }
 
 export const PLANS = ['trial', 'ignite', 'velocity', 'quantum']
