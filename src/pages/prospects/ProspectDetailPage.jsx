@@ -834,7 +834,7 @@ function ActivityPanel({ prospect }) {
     <section className="space-y-5">
       <SectionLabel
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant={activeForm === 'pipeline' ? 'default' : 'outline'}
               size="sm"
@@ -925,7 +925,7 @@ function ActivityPanel({ prospect }) {
 
 function SummaryCell({ label, children }) {
   return (
-    <div className="flex-1 px-5 py-3.5 min-w-0">
+    <div className="flex-1 shrink-0 min-w-25 px-4 sm:px-5 py-3 sm:py-3.5">
       <p className="text-xs text-muted-foreground mb-1.5">{label}</p>
       {children}
     </div>
@@ -937,7 +937,7 @@ function SummaryBar({ prospect }) {
   const lastContact = log[0]?.contacted_at
 
   return (
-    <div className="rounded-xl border flex flex-wrap divide-x divide-border">
+    <div className="rounded-xl border flex overflow-x-auto divide-x divide-border">
       <SummaryCell label="Status">
         <ProspectStatusBadge status={prospect.status} />
       </SummaryCell>
@@ -974,16 +974,16 @@ function SummaryBar({ prospect }) {
 
 function PageSkeleton() {
   return (
-    <div className="p-8 max-w-350 mx-auto space-y-6">
+    <div className="p-4 sm:p-8 max-w-350 mx-auto space-y-6">
       <Skeleton className="h-5 w-24" />
       <Skeleton className="h-9 w-64" />
       <Skeleton className="h-20 rounded-xl" />
-      <div className="grid grid-cols-3 gap-x-12 gap-y-8 pt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-12 gap-y-8 pt-2">
         <div className="space-y-8">
           <Skeleton className="h-44 rounded-xl" />
           <Skeleton className="h-72 rounded-xl" />
         </div>
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <Skeleton className="h-96 rounded-xl" />
         </div>
       </div>
@@ -1020,7 +1020,7 @@ export default function ProspectDetailPage() {
 
   if (isError || !prospect) {
     return (
-      <div className="p-8 max-w-350 mx-auto">
+      <div className="p-4 sm:p-8 max-w-350 mx-auto">
         <Button variant="ghost" size="sm" onClick={() => navigate('/prospects')} className="gap-2 -ml-2 mb-6">
           <ArrowLeft className="size-4" /> Back to Prospects
         </Button>
@@ -1030,7 +1030,7 @@ export default function ProspectDetailPage() {
   }
 
   return (
-    <div className="p-8 max-w-350 mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="p-4 sm:p-8 max-w-350 mx-auto space-y-6 animate-in fade-in duration-500">
 
       {/* Back + header */}
       <div>
@@ -1038,7 +1038,7 @@ export default function ProspectDetailPage() {
           <ArrowLeft className="size-4" /> Back to Prospects
         </Button>
 
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="font-display text-3xl font-bold tracking-tight">{prospect.agency_name}</h1>
@@ -1050,7 +1050,7 @@ export default function ProspectDetailPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
             <StatusSelect
               prospect={prospect}
               onWon={() => setConversionOpen(true)}
@@ -1093,7 +1093,7 @@ export default function ProspectDetailPage() {
 
         {/* ── Details ── */}
         <TabsContent value="details" className="mt-8 outline-none focus-visible:ring-0 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:duration-300">
-          <div className="grid grid-cols-2 gap-x-16 gap-y-10 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-10 items-start">
 
             {/* Left: Contact + Agency */}
             <div className="space-y-8">
@@ -1231,11 +1231,11 @@ export default function ProspectDetailPage() {
 
         {/* ── Outreach + Activity ── */}
         <TabsContent value="outreach" className="mt-8 outline-none focus-visible:ring-0 data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:duration-300">
-          <div className="flex gap-10 items-start">
-            <div className="flex-[65] min-w-0">
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-start">
+            <div className="w-full lg:flex-65 min-w-0">
               <ActivityPanel prospect={prospect} />
             </div>
-            <div className="flex-[35] min-w-0">
+            <div className="w-full lg:flex-35 min-w-0">
               <ActivityTab prospect={prospect} />
             </div>
           </div>

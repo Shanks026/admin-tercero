@@ -457,7 +457,7 @@ function suggestionColumns(onOpen) {
       header: 'Benefit',
       width: '220px',
       render: (item) => (
-        <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+        <p className="text-xs text-muted-foreground truncate max-w-50">
           {item.expected_benefit || '—'}
         </p>
       ),
@@ -545,7 +545,7 @@ export default function FeedbackPage() {
   )
 
   return (
-    <div className="p-8 max-w-[1400px] mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="p-4 sm:p-8 max-w-350 mx-auto space-y-6 animate-in fade-in duration-500">
 
       {/* Header */}
       <div className="space-y-1">
@@ -586,7 +586,7 @@ export default function FeedbackPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex items-center justify-between border-b border-border/40">
-          <TabsList className="bg-transparent h-auto justify-start rounded-none p-0 gap-8">
+          <TabsList className="bg-transparent h-auto justify-start rounded-none p-0 gap-4 sm:gap-8">
             {TABS.map((tab) => {
               const count = tab.key === 'bugs' ? bugs.length : suggestions.length
               return (
@@ -608,7 +608,7 @@ export default function FeedbackPage() {
                   <tab.icon className={cn('size-4', tab.iconClass)} />
                   {tab.label}
                   {count > 0 && (
-                    <Badge variant="secondary" className="text-xs px-1.5 py-0 min-w-[20px] text-center">
+                    <Badge variant="secondary" className="text-xs px-1.5 py-0 min-w-5 text-center">
                       {count}
                     </Badge>
                   )}

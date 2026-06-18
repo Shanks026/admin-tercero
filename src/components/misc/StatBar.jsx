@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
  */
 export function StatBar({ children, className }) {
   return (
-    <div className={cn('rounded-xl border flex flex-wrap divide-x divide-border', className)}>
+    <div className={cn('rounded-xl border flex overflow-x-auto divide-x divide-border', className)}>
       {children}
     </div>
   )
@@ -19,7 +19,7 @@ export function StatBar({ children, className }) {
 
 export function StatCell({ label, value, valueClass, sub, icon, iconBg }) {
   return (
-    <div className="flex-1 min-w-35 px-5 py-3.5 flex items-start justify-between gap-3">
+    <div className="flex-1 shrink-0 min-w-32.5 px-4 sm:px-5 py-3.5 flex items-start justify-between gap-3">
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground mb-3">{label}</p>
         <p className={cn('text-2xl font-bold tracking-tight', valueClass)}>{value}</p>

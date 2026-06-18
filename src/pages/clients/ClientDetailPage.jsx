@@ -79,7 +79,7 @@ function ProfileTab({ subscription, prospect }) {
       {/* Subscription profile */}
       <div className="rounded-xl border p-5 space-y-4">
         <h3 className="text-sm font-semibold">Agency Profile</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Agency Name" value={subscription.agency_name} />
           <Field label="Email" value={subscription.email} />
           <Field label="Industry" value={subscription.industry} />
@@ -97,7 +97,7 @@ function ProfileTab({ subscription, prospect }) {
       {prospect && (
         <div className="rounded-xl border p-5 space-y-4">
           <h3 className="text-sm font-semibold">Lead Origin</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Contact Name" value={prospect.name} />
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Source</p>
@@ -190,7 +190,7 @@ function ManualOverrideDialog({ subscription, userId, open, onOpenChange }) {
           {/* Limits */}
           <section className="space-y-4">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Limits</p>
-            <div className="grid grid-cols-3 gap-x-5 gap-y-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-5 gap-y-5">
               {[
                 { key: 'max_clients',            label: 'Max Clients',       placeholder: '—' },
                 { key: 'max_storage_gb',         label: 'Max Storage (GB)',  placeholder: '—' },
@@ -217,7 +217,7 @@ function ManualOverrideDialog({ subscription, userId, open, onOpenChange }) {
           {/* Billing */}
           <section className="space-y-4">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Billing</p>
-            <div className="grid grid-cols-3 gap-x-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-5 gap-y-4">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Billing Cycle</Label>
                 <Select value={form.billing_cycle} onValueChange={(v) => set('billing_cycle', v)}>
@@ -256,7 +256,7 @@ function ManualOverrideDialog({ subscription, userId, open, onOpenChange }) {
           {/* Feature Flags */}
           <section className="space-y-4">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Feature Flags</p>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
               {FEATURE_FLAGS.map(({ key, label }) => (
                 <div key={key} className="flex items-center gap-3">
                   <Checkbox
@@ -397,7 +397,7 @@ function SubscriptionTab({ subscription, userId }) {
     <div className="pt-6 space-y-8">
 
       {/* ── 2-col grid ───────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-x-16 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-8 items-start">
 
         {/* Left: Actions + Features */}
         <div className="space-y-8">
@@ -472,7 +472,7 @@ function SubscriptionTab({ subscription, userId }) {
           {/* Features */}
           <div className="space-y-5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Features</p>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
               {FEATURE_FLAGS.map(({ key, label }) => (
                 <div key={key} className="flex items-center gap-2.5">
                   <span className={cn(
@@ -732,9 +732,9 @@ export default function ClientDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="p-8 max-w-350 mx-auto space-y-6">
+      <div className="p-4 sm:p-8 max-w-350 mx-auto space-y-6">
         <Skeleton className="h-8 w-48" />
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
         <Skeleton className="h-64 rounded-xl" />
@@ -744,7 +744,7 @@ export default function ClientDetailPage() {
 
   if (error || !data) {
     return (
-      <div className="p-8 max-w-350 mx-auto">
+      <div className="p-4 sm:p-8 max-w-350 mx-auto">
         <Button variant="ghost" size="sm" onClick={() => navigate('/clients')} className="gap-2 mb-6">
           <ArrowLeft className="size-4" /> Back to Clients
         </Button>
@@ -764,16 +764,16 @@ export default function ClientDetailPage() {
   ]
 
   return (
-    <div className="p-8 max-w-350 mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="p-4 sm:p-8 max-w-350 mx-auto space-y-6 animate-in fade-in duration-500">
       {/* Back + header */}
       <div>
         <Button variant="ghost" size="sm" onClick={() => navigate('/clients')} className="gap-2 -ml-2 mb-4">
           <ArrowLeft className="size-4" /> Back to Clients
         </Button>
 
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="space-y-2">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               {(() => {
                 const name = subscription.agency_name || subscription.auth_full_name || subscription.email || ''
                 const initials = name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
@@ -808,7 +808,7 @@ export default function ClientDetailPage() {
             <p className="text-sm text-muted-foreground font-light">{subscription.email}</p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
             {/* Status update (if prospect is linked) */}
             {prospect && (
               <>
@@ -845,7 +845,8 @@ export default function ClientDetailPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-transparent h-auto w-full justify-start rounded-none p-0 gap-8 border-b border-border/40">
+        <div className="border-b border-border/40 overflow-x-auto">
+        <TabsList className="bg-transparent h-auto min-w-max justify-start rounded-none p-0 gap-4 sm:gap-8">
           {TABS.map((tab) => (
             <TabsTrigger
               key={tab.key}
@@ -867,6 +868,7 @@ export default function ClientDetailPage() {
             </TabsTrigger>
           ))}
         </TabsList>
+        </div>
 
         <TabsContent value="profile" className="mt-2 focus-visible:ring-0 outline-none data-[state=active]:animate-in data-[state=active]:fade-in data-[state=active]:duration-300">
           <ProfileTab subscription={subscription} prospect={prospect} />

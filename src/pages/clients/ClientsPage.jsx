@@ -295,7 +295,7 @@ export default function ClientsPage() {
   )
 
   return (
-    <div className="p-8 max-w-350 mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="p-4 sm:p-8 max-w-350 mx-auto space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="font-display text-3xl font-bold tracking-tight">
@@ -344,7 +344,7 @@ export default function ClientsPage() {
             className="pl-9 h-9"
           />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Select value={planFilter} onValueChange={setPlanFilter}>
             <SelectTrigger className="h-9 w-36">
               <SelectValue placeholder="All plans" />

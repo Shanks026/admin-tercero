@@ -13,7 +13,7 @@ import { toast } from 'sonner'
 import {
   Plus, Search, Upload, Users, TrendingUp, CalendarClock, CheckCircle2, X,
   LayoutGrid, LayoutList, User, ArrowUpRight, Trash2, StickyNote, Pencil, ChevronLeft,
-  Mail, Phone, MessageCircle, Instagram, Link2, MapPin,
+  Mail, Phone, MessageCircle, Instagram, Link2, MapPin, Copy, Check,
 } from 'lucide-react'
 import { StatBar, StatCell } from '@/components/misc/StatBar'
 import { Button } from '@/components/ui/button'
@@ -430,6 +430,16 @@ function OutreachNotesSheet({ open, onClose }) {
   const [editing, setEditing] = useState(null) // null = new note
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
+  const [copiedId, setCopiedId] = useState(null)
+
+  function copyBody(note, e) {
+    e.stopPropagation()
+    if (!note.body) return
+    navigator.clipboard.writeText(note.body).then(() => {
+      setCopiedId(note.id)
+      setTimeout(() => setCopiedId(null), 2000)
+    })
+  }
 
   function openNew() {
     setEditing(null)
@@ -524,6 +534,18 @@ function OutreachNotesSheet({ open, onClose }) {
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <p className="text-sm font-semibold leading-snug">{note.title}</p>
                       <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {note.body && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7"
+                            onClick={(e) => copyBody(note, e)}
+                          >
+                            {copiedId === note.id
+                              ? <Check className="size-3.5 text-emerald-500" />
+                              : <Copy className="size-3.5" />}
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -569,7 +591,27 @@ function OutreachNotesSheet({ open, onClose }) {
               </div>
               {/* Body — fills remaining space, scrolls internally */}
               <div className="flex-1 flex flex-col gap-1.5 min-h-0">
-                <label className="text-sm font-medium shrink-0">Body</label>
+                <div className="flex items-center justify-between shrink-0">
+                  <label className="text-sm font-medium">Body</label>
+                  {body && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 gap-1.5 text-xs px-2"
+                      onClick={() => {
+                        navigator.clipboard.writeText(body).then(() => {
+                          setCopiedId('edit')
+                          setTimeout(() => setCopiedId(null), 2000)
+                        })
+                      }}
+                    >
+                      {copiedId === 'edit'
+                        ? <><Check className="size-3 text-emerald-500" /> Copied</>
+                        : <><Copy className="size-3" /> Copy</>}
+                    </Button>
+                  )}
+                </div>
                 <Textarea
                   placeholder="Write your outreach message here…"
                   value={body}
@@ -862,10 +904,10 @@ export default function ProspectsPage() {
   )
 
   return (
-    <div className="p-8 max-w-350 mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="p-4 sm:p-8 max-w-350 mx-auto space-y-6 animate-in fade-in duration-500">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="font-display text-3xl font-bold tracking-tight">
             Prospects
@@ -873,7 +915,7 @@ export default function ProspectsPage() {
           </h1>
           <p className="text-sm text-muted-foreground font-light">Track and manage your lead pipeline</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setNotesOpen(true)} className="gap-2">
             <StickyNote className="size-4" />
             Outreach Notes
@@ -928,7 +970,7 @@ export default function ProspectsPage() {
             className="pl-9 h-9"
           />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="h-9 w-40">
               <SelectValue placeholder="All statuses" />

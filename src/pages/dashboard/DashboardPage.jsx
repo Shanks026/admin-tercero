@@ -248,7 +248,7 @@ export default function DashboardPage() {
   const recentSuggestions = sortedFeedback.filter((f) => f.type === 'suggestion').slice(0, 5)
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto space-y-4 animate-in fade-in duration-500">
+    <div className="p-4 sm:p-6 max-w-350 mx-auto space-y-4 animate-in fade-in duration-500">
 
       {/* ── Welcome ── */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
