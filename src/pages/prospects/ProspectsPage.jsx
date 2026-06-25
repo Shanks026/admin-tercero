@@ -4,7 +4,7 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -32,9 +32,14 @@ import {
 } from '@/components/ui/empty'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
+  Tabs, TabsList, TabsTrigger,
+} from '@/components/ui/tabs'
+import {
   ProspectStatusBadge, SourceBadge, PROSPECT_STATUSES, SOURCES, SOURCE_LABELS_MAP,
+  PROSPECT_STATUS_LABELS_MAP, PROSPECT_STATUS_COLORS,
 } from '@/components/misc/StatusBadge'
 import { formatDate } from '@/lib/helper'
+import { cn } from '@/lib/utils'
 import {
   useProspects, useCreateProspect, useBulkInsertProspects, useBulkDeleteProspects,
 } from '@/api/prospects'
@@ -758,14 +763,53 @@ function ProspectsDataTable({ data, isLoading, emptyState, onRowClick }) {
 
 // ─── Prospect card (grid view) ────────────────────────────────────────────────
 
+function scoreColors(score) {
+  if (score >= 80) return { arc: 'text-emerald-500 dark:text-emerald-400', label: 'text-emerald-700 dark:text-emerald-400' }
+  if (score >= 60) return { arc: 'text-yellow-500 dark:text-yellow-400',   label: 'text-yellow-700 dark:text-yellow-400' }
+  if (score >= 30) return { arc: 'text-orange-500 dark:text-orange-400',   label: 'text-orange-700 dark:text-orange-400' }
+  return               { arc: 'text-red-500 dark:text-red-400',          label: 'text-red-700 dark:text-red-400' }
+}
+
+function ScoreRing({ score }) {
+  const r = 14
+  const circ = 2 * Math.PI * r
+  const dash = (score / 100) * circ
+  const c = scoreColors(score)
+  return (
+    <div className="relative size-10 shrink-0">
+      <svg width="40" height="40" viewBox="0 0 40 40" className="-rotate-90" aria-hidden>
+        <circle cx="20" cy="20" r={r} fill="none" strokeWidth="2.5" stroke="currentColor" className="text-border/60" />
+        <circle
+          cx="20" cy="20" r={r}
+          fill="none"
+          strokeWidth="2.5"
+          stroke="currentColor"
+          strokeDasharray={`${dash} ${circ}`}
+          strokeLinecap="round"
+          className={c.arc}
+        />
+      </svg>
+      <span className={cn('absolute inset-0 flex items-center justify-center text-[11px] font-semibold tabular-nums', c.label)}>
+        {score}
+      </span>
+    </div>
+  )
+}
+
 function ProspectCard({ item, onClick }) {
   return (
     <div
       onClick={() => onClick(item)}
-      className="cursor-pointer rounded-2xl border bg-card flex flex-col hover:bg-accent/30 transition-colors duration-150 overflow-hidden"
+      className="relative cursor-pointer rounded-2xl border bg-card flex flex-col hover:bg-accent/30 transition-colors duration-150 overflow-hidden"
     >
+      {item.lead_score != null && (
+        <div className="absolute top-4 right-4">
+          <ScoreRing score={item.lead_score} />
+        </div>
+      )}
+
       {/* Badges */}
-      <div className="px-6 pt-6 pb-0 flex items-center gap-2 flex-wrap">
+      <div className={cn('px-6 pt-6 pb-0 flex items-center gap-2 flex-wrap', item.lead_score != null && 'pr-14')}>
         <ProspectStatusBadge status={item.status} />
         {item.source && <SourceBadge source={item.source} />}
         {item.tercero_user_id && (
@@ -844,10 +888,20 @@ function ProspectCard({ item, onClick }) {
 
 export default function ProspectsPage() {
   const navigate = useNavigate()
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [sourceFilter, setSourceFilter] = useState('all')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const search = searchParams.get('q') ?? ''
+  const statusFilter = searchParams.get('status') ?? 'all'
+  const sourceFilter = searchParams.get('source') ?? 'all'
   const [view, setView] = useState(() => localStorage.getItem('prospects-view') ?? 'grid')
+
+  function setParam(key, value) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (!value || value === 'all') next.delete(key)
+      else next.set(key, value)
+      return next
+    }, { replace: true })
+  }
 
   function handleSetView(v) {
     setView(v)
@@ -857,20 +911,26 @@ export default function ProspectsPage() {
   const [importOpen, setImportOpen] = useState(false)
   const [notesOpen, setNotesOpen] = useState(false)
 
-  const filters = {
+  const baseFilters = {
     search: search || undefined,
-    status: statusFilter !== 'all' ? statusFilter : undefined,
     source: sourceFilter !== 'all' ? sourceFilter : undefined,
   }
 
-  const { data: prospects = [], isLoading } = useProspects(filters)
+  const { data: allProspects = [], isLoading } = useProspects(baseFilters)
 
-  const hasFilters = search || statusFilter !== 'all' || sourceFilter !== 'all'
+  const prospects = statusFilter === 'all'
+    ? allProspects
+    : allProspects.filter((p) => p.status === statusFilter)
+
+  const statusCounts = PROSPECT_STATUSES.reduce((acc, s) => {
+    acc[s] = allProspects.filter((p) => p.status === s).length
+    return acc
+  }, {})
+
+  const hasFilters = search || sourceFilter !== 'all'
 
   function clearFilters() {
-    setSearch('')
-    setStatusFilter('all')
-    setSourceFilter('all')
+    setSearchParams({}, { replace: true })
   }
 
   const emptyState = (
@@ -911,7 +971,7 @@ export default function ProspectsPage() {
         <div className="space-y-1">
           <h1 className="font-display text-3xl font-bold tracking-tight">
             Prospects
-            <span className="text-muted-foreground/50 ml-2 font-extralight">{prospects.length}</span>
+            <span className="text-muted-foreground/50 ml-2 font-extralight">{allProspects.length}</span>
           </h1>
           <p className="text-sm text-muted-foreground font-light">Track and manage your lead pipeline</p>
         </div>
@@ -931,33 +991,62 @@ export default function ProspectsPage() {
         </div>
       </div>
 
-      {/* KPIs */}
-      <StatBar>
+      {/* KPIs — hidden for now */}
+      {/* <StatBar>
         <StatCell
           label="Total"
-          value={prospects.length}
+          value={allProspects.length}
           icon={<Users className="h-3 w-3 text-blue-600 dark:text-blue-400" />}
           iconBg="bg-blue-100 dark:bg-blue-500/10"
         />
         <StatCell
           label="Contacted"
-          value={prospects.filter((p) => p.status === 'contacted').length}
+          value={statusCounts.contacted ?? 0}
           icon={<TrendingUp className="h-3 w-3 text-orange-600 dark:text-orange-400" />}
           iconBg="bg-orange-100 dark:bg-orange-500/10"
         />
         <StatCell
           label="Demo Scheduled"
-          value={prospects.filter((p) => p.status === 'demo_scheduled').length}
+          value={statusCounts.demo_scheduled ?? 0}
           icon={<CalendarClock className="h-3 w-3 text-purple-600 dark:text-purple-400" />}
           iconBg="bg-purple-100 dark:bg-purple-500/10"
         />
         <StatCell
-          label="Converted"
-          value={prospects.filter((p) => p.status === 'converted').length}
+          label="Won"
+          value={statusCounts.won ?? 0}
           icon={<CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />}
           iconBg="bg-emerald-100 dark:bg-emerald-500/10"
         />
-      </StatBar>
+      </StatBar> */}
+
+      {/* Status tabs */}
+      <Tabs value={statusFilter} onValueChange={(v) => setParam('status', v)} className="w-full">
+        <TabsList className="bg-transparent h-auto w-full justify-start rounded-none p-0 gap-6 border-b border-border/40 overflow-x-auto">
+          <TabsTrigger
+            value="all"
+            className="relative rounded-none bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium transition-none shadow-none border-b-2 border-transparent text-muted-foreground flex-none w-fit gap-1.5 data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:text-black dark:data-[state=active]:text-white data-[state=active]:border-black dark:data-[state=active]:border-white data-[state=active]:shadow-none data-[state=active]:border-x-0 data-[state=active]:border-t-0 focus-visible:ring-0"
+          >
+            All
+            <span className="inline-flex items-center justify-center rounded-full font-sans font-normal tabular-nums text-xs px-1.5 min-w-[20px] bg-muted text-muted-foreground">
+              {allProspects.length}
+            </span>
+          </TabsTrigger>
+          {PROSPECT_STATUSES.map((s) => (
+            <TabsTrigger
+              key={s}
+              value={s}
+              className="relative rounded-none bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium transition-none shadow-none border-b-2 border-transparent text-muted-foreground flex-none w-fit gap-1.5 data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:text-black dark:data-[state=active]:text-white data-[state=active]:border-black dark:data-[state=active]:border-white data-[state=active]:shadow-none data-[state=active]:border-x-0 data-[state=active]:border-t-0 focus-visible:ring-0"
+            >
+              {PROSPECT_STATUS_LABELS_MAP[s]}
+              {statusCounts[s] > 0 && (
+                <span className={cn('inline-flex items-center justify-center rounded-full font-sans font-normal tabular-nums text-xs px-1.5 min-w-[20px]', PROSPECT_STATUS_COLORS[s])}>
+                  {statusCounts[s]}
+                </span>
+              )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -966,25 +1055,12 @@ export default function ProspectsPage() {
           <Input
             placeholder="Search name, agency, email…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => setParam('q', e.target.value)}
             className="pl-9 h-9"
           />
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue placeholder="All statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {PROSPECT_STATUSES.map((s) => (
-                <SelectItem key={s} value={s} className="capitalize">
-                  {s.replace(/_/g, ' ')}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+          <Select value={sourceFilter} onValueChange={(v) => setParam('source', v)}>
             <SelectTrigger className="h-9 w-37.5">
               <SelectValue placeholder="All sources" />
             </SelectTrigger>

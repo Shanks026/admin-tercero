@@ -44,6 +44,7 @@ import { cn } from '@/lib/utils'
 const CHANNEL_OPTIONS = [
   { value: 'whatsapp',  label: 'WhatsApp',  icon: MessageCircle },
   { value: 'instagram', label: 'Instagram', icon: Instagram },
+  { value: 'linkedin',  label: 'LinkedIn',  icon: Linkedin },
   { value: 'email',     label: 'Email',     icon: Mail },
   { value: 'call',      label: 'Call',      icon: Phone },
   { value: 'in_person', label: 'In Person', icon: Users },
@@ -59,6 +60,7 @@ const STATUS_DOT = {
   trial_started:  'bg-emerald-500',
   won:            'bg-teal-500',
   dead:           'bg-gray-400',
+  defected:       'bg-red-400',
 }
 
 const STATUS_CHIP = {
@@ -69,6 +71,7 @@ const STATUS_CHIP = {
   trial_started:  'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400',
   won:            'bg-teal-100 text-teal-800 dark:bg-teal-500/10 dark:text-teal-400',
   dead:           'bg-gray-100 text-gray-600 dark:bg-gray-500/10 dark:text-gray-400',
+  defected:       'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400',
 }
 
 // ─── Status quick-update select (colored to match status) ───────────────────────
@@ -1021,7 +1024,7 @@ export default function ProspectDetailPage() {
   if (isError || !prospect) {
     return (
       <div className="p-4 sm:p-8 max-w-350 mx-auto">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/prospects')} className="gap-2 -ml-2 mb-6">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-2 -ml-2 mb-6">
           <ArrowLeft className="size-4" /> Back to Prospects
         </Button>
         <p className="text-sm text-destructive">Prospect not found.</p>
@@ -1034,7 +1037,7 @@ export default function ProspectDetailPage() {
 
       {/* Back + header */}
       <div>
-        <Button variant="ghost" size="sm" onClick={() => navigate('/prospects')} className="gap-2 -ml-2 mb-4">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-2 -ml-2 mb-4">
           <ArrowLeft className="size-4" /> Back to Prospects
         </Button>
 
@@ -1121,7 +1124,7 @@ export default function ProspectDetailPage() {
                       <span className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
                         <Linkedin className="size-3.5" /> LinkedIn
                       </span>
-                      <a href={prospect.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary truncate">View Profile</a>
+                      <a href={/^https?:\/\//i.test(prospect.linkedin_url) ? prospect.linkedin_url : `https://${prospect.linkedin_url}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary truncate">{prospect.linkedin_url.replace(/^https?:\/\//i, '')}</a>
                     </div>
                   )}
                   <Field label="Added" value={formatDate(prospect.created_at)} icon={CalendarClock} />

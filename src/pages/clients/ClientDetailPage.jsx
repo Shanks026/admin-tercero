@@ -15,6 +15,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
@@ -23,7 +24,8 @@ import { formatDate, formatRelative } from '@/lib/helper'
 import {
   useClientDetail, useClientOutreach, useUpdateClientStatus,
   useUpgradePlan, useRenewSubscription, useToggleActive, useManualOverride,
-  useDeleteClient, isChurnRisk, trialDaysLeft, PLANS,
+  useScheduleDeletion, useCancelDeletion, usePurgeImmediately,
+  isChurnRisk, trialDaysLeft, PLANS,
 } from '@/api/clients'
 import { PROSPECT_STATUSES } from '@/components/misc/StatusBadge'
 import { useClientOnboarding } from '@/api/onboarding'
@@ -33,6 +35,10 @@ const CHANNEL_LABELS = {
   whatsapp: 'WhatsApp', instagram: 'Instagram',
   email: 'Email', call: 'Call', in_person: 'In Person',
 }
+
+// Recovery window for scheduled deletion — must match the main app + the
+// admin_schedule_workspace_deletion RPC default.
+const GRACE_PERIOD_DAYS = 14
 
 const FEATURE_FLAGS = [
   { key: 'branding_agency_sidebar', label: 'Agency Sidebar' },
@@ -286,13 +292,57 @@ function ManualOverrideDialog({ subscription, userId, open, onOpenChange }) {
   )
 }
 
-function DeleteClientDialog({ open, onOpenChange, agencyName, userId }) {
+function ScheduleDeletionDialog({ open, onOpenChange, agencyName, userId }) {
+  const schedule = useScheduleDeletion(userId)
+
+  // Indicative recovery date shown to the admin; the RPC computes the
+  // authoritative timestamp server-side from the same window.
+  const recoveryDate = new Date()
+  recoveryDate.setDate(recoveryDate.getDate() + GRACE_PERIOD_DAYS)
+
+  function handleSchedule() {
+    schedule.mutate(GRACE_PERIOD_DAYS, { onSuccess: () => onOpenChange(false) })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base font-semibold">
+            Schedule deletion
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 -mt-1">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{agencyName}</span> will be
+            scheduled for permanent deletion on{' '}
+            <span className="font-medium text-foreground">{formatDate(recoveryDate)}</span>{' '}
+            ({GRACE_PERIOD_DAYS}-day recovery window). The owner sees a banner in the
+            app and can cancel, and you can cancel here, any time before then. After
+            the window the workspace and all its data and files are purged automatically.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={schedule.isPending}>
+            Cancel
+          </Button>
+          <Button onClick={handleSchedule} disabled={schedule.isPending}>
+            {schedule.isPending ? 'Scheduling…' : 'Schedule deletion'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DeleteImmediatelyDialog({ open, onOpenChange, agencyName, userId }) {
   const [typed, setTyped] = useState('')
+  const [reason, setReason] = useState('')
   const navigate = useNavigate()
-  const deleteClient = useDeleteClient()
+  const purge = usePurgeImmediately(userId)
 
   function handleDelete() {
-    deleteClient.mutate(userId, {
+    purge.mutate(reason.trim(), {
       onSuccess: () => {
         onOpenChange(false)
         navigate('/clients')
@@ -300,20 +350,34 @@ function DeleteClientDialog({ open, onOpenChange, agencyName, userId }) {
     })
   }
 
-  const confirmed = typed === agencyName
+  const confirmed = typed === agencyName && reason.trim().length > 0
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold text-destructive">
-            Delete Client Permanently
+            Delete immediately (no recovery)
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 -mt-1">
           <p className="text-sm text-muted-foreground">
-            This will permanently delete <span className="font-medium text-foreground">{agencyName}</span> and all associated data — clients, posts, documents, invoices, meetings, notes, and more. This cannot be undone.
+            This purges <span className="font-medium text-foreground">{agencyName}</span> right
+            now — clients, posts, documents, invoices, meetings, notes, storage files, and team
+            accounts. It skips the recovery window and <span className="font-medium text-foreground">cannot be undone</span>.
+            For a recoverable deletion, use “Schedule deletion” instead.
           </p>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Reason (recorded in the audit log)
+            </Label>
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Why is this workspace being purged immediately?"
+              className="text-sm min-h-20"
+            />
+          </div>
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">
               Type <span className="font-medium text-foreground">{agencyName}</span> to confirm
@@ -327,15 +391,15 @@ function DeleteClientDialog({ open, onOpenChange, agencyName, userId }) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={deleteClient.isPending}>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={purge.isPending}>
             Cancel
           </Button>
           <Button
             variant="destructive"
             onClick={handleDelete}
-            disabled={!confirmed || deleteClient.isPending}
+            disabled={!confirmed || purge.isPending}
           >
-            {deleteClient.isPending ? 'Deleting…' : 'Delete Permanently'}
+            {purge.isPending ? 'Deleting…' : 'Delete permanently'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -725,8 +789,10 @@ export default function ClientDetailPage() {
   const { userId } = useParams()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('profile')
-  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [immediateOpen, setImmediateOpen] = useState(false)
   const updateStatus = useUpdateClientStatus()
+  const cancelDeletion = useCancelDeletion(userId)
 
   const { data, isLoading, error } = useClientDetail(userId)
 
@@ -745,7 +811,7 @@ export default function ClientDetailPage() {
   if (error || !data) {
     return (
       <div className="p-4 sm:p-8 max-w-350 mx-auto">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/clients')} className="gap-2 mb-6">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-2 mb-6">
           <ArrowLeft className="size-4" /> Back to Clients
         </Button>
         <p className="text-sm text-destructive">Failed to load client.</p>
@@ -767,7 +833,7 @@ export default function ClientDetailPage() {
     <div className="p-4 sm:p-8 max-w-350 mx-auto space-y-6 animate-in fade-in duration-500">
       {/* Back + header */}
       <div>
-        <Button variant="ghost" size="sm" onClick={() => navigate('/clients')} className="gap-2 -ml-2 mb-4">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-2 -ml-2 mb-4">
           <ArrowLeft className="size-4" /> Back to Clients
         </Button>
 
@@ -830,17 +896,52 @@ export default function ClientDetailPage() {
                 </Select>
               </>
             )}
+            {!subscription.scheduled_for_deletion_at && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => setScheduleOpen(true)}
+              >
+                <Clock className="size-3.5" />
+                Schedule deletion
+              </Button>
+            )}
             <Button
               size="sm"
               variant="destructive"
               className="gap-1.5"
-              onClick={() => setDeleteOpen(true)}
+              onClick={() => setImmediateOpen(true)}
             >
               <Trash2 className="size-3.5" />
-              Delete
+              Delete now
             </Button>
           </div>
         </div>
+
+        {/* Scheduled-deletion banner */}
+        {subscription.scheduled_for_deletion_at && (
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 dark:border-amber-500/20 dark:bg-amber-500/10">
+            <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                Scheduled for permanent deletion on {formatDate(subscription.scheduled_for_deletion_at)}
+              </p>
+              <p className="text-xs text-amber-700/80 dark:text-amber-400/70">
+                All data and storage files will be purged after this date. Cancel to keep the workspace.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="sm:shrink-0 bg-background"
+              onClick={() => cancelDeletion.mutate()}
+              disabled={cancelDeletion.isPending}
+            >
+              {cancelDeletion.isPending ? 'Cancelling…' : 'Cancel deletion'}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -891,9 +992,16 @@ export default function ClientDetailPage() {
         </TabsContent>
       </Tabs>
 
-      <DeleteClientDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
+      <ScheduleDeletionDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        agencyName={subscription.agency_name || subscription.email}
+        userId={userId}
+      />
+
+      <DeleteImmediatelyDialog
+        open={immediateOpen}
+        onOpenChange={setImmediateOpen}
         agencyName={subscription.agency_name || subscription.email}
         userId={userId}
       />

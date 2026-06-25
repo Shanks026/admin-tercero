@@ -48,6 +48,15 @@ function SubscriptionStatusBadge({ client }) {
   )
 }
 
+function ScheduledBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-400">
+      <AlertTriangle className="size-3" />
+      Deletion scheduled
+    </span>
+  )
+}
+
 function ClientCard({ item, onClick }) {
   const hasAgency = item.agency_name || item.email
   const displayName = item.agency_name || item.auth_full_name || '—'
@@ -67,9 +76,10 @@ function ClientCard({ item, onClick }) {
       className="cursor-pointer rounded-2xl border bg-card flex flex-col hover:bg-accent/30 transition-colors duration-150 overflow-hidden"
     >
       {/* Badges */}
-      <div className="px-6 pt-6 pb-0 flex items-center gap-2">
+      <div className="px-6 pt-6 pb-0 flex items-center gap-2 flex-wrap">
         <PlanBadge plan={item.plan_name} />
         <SubscriptionStatusBadge client={item} />
+        {item.scheduled_for_deletion_at && <ScheduledBadge />}
       </div>
 
       {/* Avatar + Agency + email */}
@@ -180,9 +190,11 @@ export default function ClientsPage() {
 
   const clients = statusFilter === 'all'
     ? rawClients
-    : statusFilter === 'trial'
-      ? rawClients.filter((c) => c.plan_name === 'trial' && subscriptionStatus(c) !== 'expired' && subscriptionStatus(c) !== 'inactive')
-      : rawClients.filter((c) => subscriptionStatus(c) === statusFilter)
+    : statusFilter === 'scheduled'
+      ? rawClients.filter((c) => c.scheduled_for_deletion_at)
+      : statusFilter === 'trial'
+        ? rawClients.filter((c) => c.plan_name === 'trial' && subscriptionStatus(c) !== 'expired' && subscriptionStatus(c) !== 'inactive')
+        : rawClients.filter((c) => subscriptionStatus(c) === statusFilter)
 
   const hasFilters = search || planFilter !== 'all' || statusFilter !== 'all'
 
@@ -233,8 +245,13 @@ export default function ClientsPage() {
     },
     {
       header: 'Status',
-      width: '100px',
-      render: (item) => <SubscriptionStatusBadge client={item} />,
+      width: '140px',
+      render: (item) => (
+        <div className="flex flex-col items-start gap-1">
+          <SubscriptionStatusBadge client={item} />
+          {item.scheduled_for_deletion_at && <ScheduledBadge />}
+        </div>
+      ),
     },
     {
       header: 'Expires',
@@ -367,6 +384,7 @@ export default function ClientsPage() {
               <SelectItem value="trial">Trial</SelectItem>
               <SelectItem value="expired">Expired</SelectItem>
               <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="scheduled">Scheduled for deletion</SelectItem>
             </SelectContent>
           </Select>
 

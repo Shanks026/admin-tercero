@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { toast } from 'sonner'
 
 const KEYS = {
@@ -48,14 +47,19 @@ async function fetchClientDetail(userId) {
       .select('*')
       .eq('tercero_user_id', userId)
       .maybeSingle(),
-    supabaseAdmin.auth.admin.getUserById(userId),
+    supabase.rpc('admin_get_user_auth_info', { target_user_id: userId }),
   ])
 
   if (subResult.error) throw subResult.error
   if (!subResult.data) throw new Error('Client not found')
 
-  const auth_email = authResult.data?.user?.email ?? null
-  const auth_full_name = authResult.data?.user?.user_metadata?.full_name ?? null
+  // admin_get_user_auth_info returns an array; take the first row.
+  const authInfo = authResult.data?.[0] ?? null
+  const auth_email = authInfo?.email ?? null
+  // NOTE: full_name lives in auth.users.raw_user_meta_data and is NOT among the
+  // columns this RPC currently returns — falls back to null until it's added
+  // (see hand-off note), then restores with no further client change.
+  const auth_full_name = authInfo?.full_name ?? null
 
   return {
     subscription: {
@@ -163,13 +167,18 @@ async function updateClientProspectStatus({ userId, status }) {
   if (error) throw error
 }
 
+// All four subscription writes route through one superadmin-gated RPC,
+// admin_update_subscription(target_user_id, patch). The RPC strips protected
+// columns (user_id, created_at, current_storage_used, scheduled_for_deletion_at)
+// and forces updated_at = now(); every other column in the patch applies as-is.
+
 async function upgradePlan({ userId, plan }) {
   const config = PLAN_CONFIGS[plan]
   if (!config) throw new Error(`Unknown plan: ${plan}`)
-  const { error } = await supabaseAdmin
-    .from('agency_subscriptions')
-    .update(config)
-    .eq('user_id', userId)
+  const { error } = await supabase.rpc('admin_update_subscription', {
+    target_user_id: userId,
+    patch: config,
+  })
   if (error) throw error
 }
 
@@ -177,55 +186,79 @@ async function renewSubscription({ userId, billingCycle }) {
   const days = billingCycle === 'yearly' ? 365 : 30
   const endsAt = new Date()
   endsAt.setDate(endsAt.getDate() + days)
-  const { error } = await supabaseAdmin
-    .from('agency_subscriptions')
-    .update({ subscription_ends_at: endsAt.toISOString(), is_active: true })
-    .eq('user_id', userId)
+  const { error } = await supabase.rpc('admin_update_subscription', {
+    target_user_id: userId,
+    patch: { subscription_ends_at: endsAt.toISOString(), is_active: true },
+  })
   if (error) throw error
 }
 
 async function toggleActive({ userId, isActive }) {
-  const { error } = await supabaseAdmin
-    .from('agency_subscriptions')
-    .update({ is_active: isActive })
-    .eq('user_id', userId)
+  const { error } = await supabase.rpc('admin_update_subscription', {
+    target_user_id: userId,
+    patch: { is_active: isActive },
+  })
   if (error) throw error
 }
 
 async function manualOverride({ userId, fields }) {
-  const { error } = await supabaseAdmin
-    .from('agency_subscriptions')
-    .update(fields)
-    .eq('user_id', userId)
+  const { error } = await supabase.rpc('admin_update_subscription', {
+    target_user_id: userId,
+    patch: fields,
+  })
   if (error) throw error
 }
 
-async function deleteClient(userId) {
-  // Delete all agency clients first (cascades posts, notes, docs, meetings, invoices, etc.)
-  const { error: clientsErr } = await supabaseAdmin
-    .from('clients')
-    .delete()
-    .eq('user_id', userId)
-  if (clientsErr) throw clientsErr
+// ─── Workspace deletion ─────────────────────────────────────────────────────
+//
+// Mirrors the main Tercero app's grace-period model. All actual destruction is
+// owned by the canonical purgeWorkspace() teardown on the server — this client
+// NEVER reimplements a purge and never holds the service-role key.
+//
+//   • scheduleDeletion  → admin_schedule_workspace_deletion RPC (superadmin-gated,
+//                          SECURITY DEFINER). Sets scheduled_for_deletion_at; the
+//                          daily pg_cron purge sweeps it up after the window.
+//   • cancelDeletion    → admin_cancel_workspace_deletion RPC. Clears the schedule.
+//   • purgeImmediately  → delete-workspace edge function. Invoked with the
+//                          superadmin's session JWT (attached automatically by
+//                          functions.invoke), which the function verifies before
+//                          running purgeWorkspace() on the single target workspace.
 
-  // Delete agency-level records in parallel
-  // Includes proposals (agency_user_id NO ACTION) and both agency_members columns
-  const results = await Promise.all([
-    supabaseAdmin.from('agency_subscriptions').delete().eq('user_id', userId),
-    supabaseAdmin.from('agency_members').delete().eq('agency_user_id', userId),
-    supabaseAdmin.from('agency_members').delete().eq('member_user_id', userId),
-    supabaseAdmin.from('agency_invites').delete().eq('agency_user_id', userId),
-    supabaseAdmin.from('proposals').delete().eq('agency_user_id', userId),
-    supabaseAdmin.from('user_feedback').delete().eq('workspace_user_id', userId),
-    supabaseAdmin.from('user_feedback').delete().eq('submitter_user_id', userId),
-  ])
-  for (const { error } of results) {
-    if (error) throw error
+async function scheduleDeletion({ userId, days = 14 }) {
+  const { data, error } = await supabase.rpc('admin_schedule_workspace_deletion', {
+    target_user_id: userId,
+    days,
+  })
+  if (error) throw error
+  return data // resulting scheduled_for_deletion_at timestamp
+}
+
+async function cancelDeletion(userId) {
+  const { error } = await supabase.rpc('admin_cancel_workspace_deletion', {
+    target_user_id: userId,
+  })
+  if (error) throw error
+}
+
+async function purgeImmediately({ userId, reason }) {
+  const { data, error } = await supabase.functions.invoke('delete-workspace', {
+    body: { workspace_user_id: userId, reason },
+  })
+  if (error) {
+    // Non-2xx responses arrive as FunctionsHttpError with the body on .context
+    let message = error.message
+    try {
+      const body = await error.context?.json?.()
+      if (body?.error) message = body.error
+    } catch {
+      /* response had no JSON body — fall back to error.message */
+    }
+    throw new Error(message || 'Failed to delete workspace')
   }
-
-  // Delete the auth user last
-  const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(userId)
-  if (authErr) throw authErr
+  if (data && data.success === false) {
+    throw new Error(data.error || 'Failed to delete workspace')
+  }
+  return data // { success: true, purged: 1 }
 }
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
@@ -318,15 +351,41 @@ export function useManualOverride(userId) {
   })
 }
 
-export function useDeleteClient() {
+export function useScheduleDeletion(userId) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (userId) => deleteClient(userId),
+    mutationFn: (days = 14) => scheduleDeletion({ userId, days }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(userId) })
+      qc.invalidateQueries({ queryKey: ['admin', 'clients', 'list'] })
+      toast.success('Workspace scheduled for deletion')
+    },
+    onError: (e) => toast.error(e.message || 'Failed to schedule deletion'),
+  })
+}
+
+export function useCancelDeletion(userId) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => cancelDeletion(userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(userId) })
+      qc.invalidateQueries({ queryKey: ['admin', 'clients', 'list'] })
+      toast.success('Scheduled deletion cancelled')
+    },
+    onError: (e) => toast.error(e.message || 'Failed to cancel deletion'),
+  })
+}
+
+export function usePurgeImmediately(userId) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (reason) => purgeImmediately({ userId, reason }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'clients', 'list'] })
-      toast.success('Client permanently deleted')
+      toast.success('Workspace permanently deleted')
     },
-    onError: (e) => toast.error(e.message || 'Failed to delete client'),
+    onError: (e) => toast.error(e.message || 'Failed to delete workspace'),
   })
 }
 

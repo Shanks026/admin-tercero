@@ -8,6 +8,7 @@ const PROSPECT_STATUS = {
   trial_started:  'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400',
   won:            'bg-teal-100 text-teal-800 dark:bg-teal-500/10 dark:text-teal-400',
   dead:           'bg-gray-100 text-gray-600 dark:bg-gray-500/10 dark:text-gray-400',
+  defected:       'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400',
 }
 
 const PROSPECT_STATUS_LABELS = {
@@ -18,6 +19,7 @@ const PROSPECT_STATUS_LABELS = {
   trial_started:  'Trial Started',
   won:            'Won',
   dead:           'Dead',
+  defected:       'Defected',
 }
 
 const SOURCE_COLORS = {
@@ -117,5 +119,6 @@ export function PlanBadge({ plan, className }) {
 
 export const PROSPECT_STATUSES = Object.keys(PROSPECT_STATUS_LABELS)
 export const PROSPECT_STATUS_LABELS_MAP = PROSPECT_STATUS_LABELS
+export const PROSPECT_STATUS_COLORS = PROSPECT_STATUS
 export const SOURCE_LABELS_MAP = SOURCE_LABELS
 export const SOURCES = Object.keys(SOURCE_LABELS)
