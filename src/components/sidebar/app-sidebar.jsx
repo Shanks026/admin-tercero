@@ -7,6 +7,7 @@ import {
   LogOut,
   ChevronsUpDown,
   IndianRupee,
+  ShieldAlert,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
@@ -129,6 +130,17 @@ export function AppSidebar() {
               {NAV_ITEMS.map((item) => (
                 <NavItem key={item.title} item={item} />
               ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          {state === 'expanded' && (
+            <SidebarGroupLabel>Settings</SidebarGroupLabel>
+          )}
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <NavItem item={{ title: 'Maintenance', url: '/settings/maintenance', icon: ShieldAlert }} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

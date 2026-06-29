@@ -9,6 +9,7 @@ import ClientsPage from '@/pages/clients/ClientsPage'
 import ClientDetailPage from '@/pages/clients/ClientDetailPage'
 import FeedbackPage from '@/pages/feedback/FeedbackPage'
 import RevenuePage from '@/pages/revenue/RevenuePage'
+import MaintenancePage from '@/pages/settings/MaintenancePage'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="clients/:userId" element={<ClientDetailPage />} />
         <Route path="feedback" element={<FeedbackPage />} />
         <Route path="revenue" element={<RevenuePage />} />
+        <Route path="settings/maintenance" element={<MaintenancePage />} />
       </Route>
 
       <Route path="*" element={<Navigate to={user ? '/dashboard' : '/login'} replace />} />
