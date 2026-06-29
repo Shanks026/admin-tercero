@@ -67,6 +67,23 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  // When the tab comes back into focus after being backgrounded or the machine
+  // wakes from sleep, browser timers (used by Supabase for refresh scheduling)
+  // may not have fired. Re-check the session immediately so a stale JWT never
+  // reaches an API call.
+  useEffect(() => {
+    async function handleVisibilityChange() {
+      if (document.visibilityState !== 'visible') return
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setUser(null)
+        setProfile(null)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
+
   async function signOut() {
     await supabase.auth.signOut()
     setUser(null)
