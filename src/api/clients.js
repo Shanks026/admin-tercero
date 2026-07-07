@@ -89,11 +89,12 @@ export const PLAN_CONFIGS = {
   // Trial mirrors Quantum — full access, time-limited via trial_ends_at (14 days)
   trial: {
     plan_name: 'trial',
-    max_clients: 30,
-    max_storage_bytes: 322_122_547_200,  // 300 GB
+    max_clients: null,
+    max_storage_bytes: 214_748_364_800,  // 200 GB — the one deliberate trial limit
     max_team_members: null,
     proposals_limit: null,
     extra_client_price_inr: null,
+    extra_seat_price_inr: null,
     branding_agency_sidebar: true,
     branding_powered_by: false,
     finance_recurring_invoices: true,
@@ -106,11 +107,12 @@ export const PLAN_CONFIGS = {
   },
   ignite: {
     plan_name: 'ignite',
-    max_clients: 5,
-    max_storage_bytes: 21_474_836_480,   // 20 GB
-    max_team_members: 2,
-    proposals_limit: 5,
+    max_clients: 8,
+    max_storage_bytes: 53_687_091_200,   // 50 GB
+    max_team_members: 4,
+    proposals_limit: 10,
     extra_client_price_inr: 500,
+    extra_seat_price_inr: 399,
     branding_agency_sidebar: false,
     branding_powered_by: true,
     finance_recurring_invoices: false,
@@ -123,11 +125,12 @@ export const PLAN_CONFIGS = {
   },
   velocity: {
     plan_name: 'velocity',
-    max_clients: 15,
-    max_storage_bytes: 107_374_182_400,  // 100 GB
-    max_team_members: 5,
+    max_clients: 20,
+    max_storage_bytes: 214_748_364_800,  // 200 GB
+    max_team_members: 10,
     proposals_limit: null,
     extra_client_price_inr: 500,
+    extra_seat_price_inr: 399,
     branding_agency_sidebar: true,
     branding_powered_by: true,
     finance_recurring_invoices: true,
@@ -140,11 +143,12 @@ export const PLAN_CONFIGS = {
   },
   quantum: {
     plan_name: 'quantum',
-    max_clients: 30,
-    max_storage_bytes: 322_122_547_200,  // 300 GB
+    max_clients: null,
+    max_storage_bytes: 536_870_912_000,  // 500 GB base — adjust per deal
     max_team_members: null,
     proposals_limit: null,
-    extra_client_price_inr: 500,
+    extra_client_price_inr: null,
+    extra_seat_price_inr: null,
     branding_agency_sidebar: true,
     branding_powered_by: false,
     finance_recurring_invoices: true,
@@ -409,10 +413,10 @@ export const PLANS = ['trial', 'ignite', 'velocity', 'quantum']
 
 // Storage limits — must match PLAN_CONFIGS values
 export const PLAN_STORAGE_BYTES = {
-  trial:    322_122_547_200,  // 300 GB
-  ignite:    21_474_836_480,  //  20 GB
-  velocity: 107_374_182_400,  // 100 GB
-  quantum:  322_122_547_200,  // 300 GB
+  trial:    214_748_364_800,  // 200 GB
+  ignite:    53_687_091_200,  //  50 GB
+  velocity: 214_748_364_800,  // 200 GB
+  quantum:  536_870_912_000,  // 500 GB
 }
 
 const MiB = 1024 ** 2

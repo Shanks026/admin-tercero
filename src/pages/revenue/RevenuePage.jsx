@@ -5,7 +5,7 @@ import { StatBar, StatCell } from '@/components/misc/StatBar'
 import { useClients, PLANS } from '@/api/clients'
 import { useAuth } from '@/context/AuthContext'
 
-const PLAN_PRICES = { ignite: 1999, velocity: 4999, quantum: 12999 }
+const PLAN_PRICES = { ignite: 1999, velocity: 4999 } // Quantum is custom-priced per deal
 
 function formatINR(n) {
   return new Intl.NumberFormat('en-IN', {
@@ -16,7 +16,7 @@ function formatINR(n) {
 const TIER_META = [
   { plan: 'ignite',   label: 'Ignite',   price: PLAN_PRICES.ignite,   icon: Zap,      color: 'text-orange-500 dark:text-orange-400', iconBg: 'bg-orange-100 dark:bg-orange-500/10' },
   { plan: 'velocity', label: 'Velocity', price: PLAN_PRICES.velocity, icon: Gauge,    color: 'text-purple-500 dark:text-purple-400',  iconBg: 'bg-purple-100 dark:bg-purple-500/10'  },
-  { plan: 'quantum',  label: 'Quantum',  price: PLAN_PRICES.quantum,  icon: Sparkles, color: 'text-pink-500 dark:text-pink-400',     iconBg: 'bg-pink-100 dark:bg-pink-500/10'     },
+  { plan: 'quantum',  label: 'Quantum',  price: null,                 icon: Sparkles, color: 'text-pink-500 dark:text-pink-400',     iconBg: 'bg-pink-100 dark:bg-pink-500/10'     },
 ]
 
 export default function RevenuePage() {
@@ -28,7 +28,7 @@ export default function RevenuePage() {
 
   const tierStats = TIER_META.map((t) => {
     const count = clients.filter((c) => c.plan_name === t.plan).length
-    return { ...t, count, revenue: count * t.price }
+    return { ...t, count, revenue: t.price != null ? count * t.price : null }
   })
 
   return (
@@ -74,8 +74,8 @@ export default function RevenuePage() {
             <StatCell
               key={t.plan}
               label={t.label}
-              value={formatINR(t.revenue)}
-              sub={`${t.count} client${t.count !== 1 ? 's' : ''} · ${formatINR(t.price)}/mo`}
+              value={t.revenue != null ? formatINR(t.revenue) : '—'}
+              sub={`${t.count} client${t.count !== 1 ? 's' : ''} · ${t.price != null ? `${formatINR(t.price)}/mo` : 'Custom pricing'}`}
               icon={<t.icon className={`h-3 w-3 ${t.color}`} />}
               iconBg={t.iconBg}
             />

@@ -141,6 +141,7 @@ function ManualOverrideDialog({ subscription, userId, open, onOpenChange }) {
       max_team_members: s.max_team_members ?? '',
       proposals_limit: s.proposals_limit ?? '',
       extra_client_price_inr: s.extra_client_price_inr ?? '',
+      extra_seat_price_inr: s.extra_seat_price_inr ?? '',
       branding_agency_sidebar: !!s.branding_agency_sidebar,
       branding_powered_by: !!s.branding_powered_by,
       finance_recurring_invoices: !!s.finance_recurring_invoices,
@@ -169,6 +170,7 @@ function ManualOverrideDialog({ subscription, userId, open, onOpenChange }) {
       max_team_members: form.max_team_members !== '' ? Number(form.max_team_members) : null,
       proposals_limit: form.proposals_limit !== '' ? Number(form.proposals_limit) : null,
       extra_client_price_inr: form.extra_client_price_inr !== '' ? Number(form.extra_client_price_inr) : null,
+      extra_seat_price_inr: form.extra_seat_price_inr !== '' ? Number(form.extra_seat_price_inr) : null,
       branding_agency_sidebar: form.branding_agency_sidebar,
       branding_powered_by: form.branding_powered_by,
       finance_recurring_invoices: form.finance_recurring_invoices,
@@ -203,6 +205,7 @@ function ManualOverrideDialog({ subscription, userId, open, onOpenChange }) {
                 { key: 'max_team_members',       label: 'Team Members',      placeholder: 'Unlimited' },
                 { key: 'proposals_limit',        label: 'Proposals',         placeholder: 'Unlimited' },
                 { key: 'extra_client_price_inr', label: 'Extra Client (₹)',  placeholder: '—' },
+                { key: 'extra_seat_price_inr',   label: 'Extra Seat (₹)',    placeholder: '—' },
               ].map(({ key, label, placeholder }) => (
                 <div key={key} className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">{label}</Label>
@@ -608,6 +611,9 @@ function SubscriptionTab({ subscription, userId }) {
               <Row label="Proposals" value={subscription.proposals_limit ?? 'Unlimited'} />
               {subscription.extra_client_price_inr && (
                 <Row label="Extra Client Slot" value={`₹${subscription.extra_client_price_inr}`} />
+              )}
+              {subscription.extra_seat_price_inr && (
+                <Row label="Extra Seat" value={`₹${subscription.extra_seat_price_inr}`} />
               )}
               <div className="flex items-center justify-between py-0.5">
                 <span className="text-sm text-muted-foreground">Storage</span>
