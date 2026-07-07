@@ -104,6 +104,7 @@ export const PLAN_CONFIGS = {
     documents_collections: true,
     reports: true,
     campaigns: true,
+    chat: true,
   },
   ignite: {
     plan_name: 'ignite',
@@ -122,6 +123,7 @@ export const PLAN_CONFIGS = {
     documents_collections: false,
     reports: false,
     campaigns: true,
+    chat: false,
   },
   velocity: {
     plan_name: 'velocity',
@@ -140,6 +142,7 @@ export const PLAN_CONFIGS = {
     documents_collections: true,
     reports: true,
     campaigns: true,
+    chat: true,
   },
   quantum: {
     plan_name: 'quantum',
@@ -158,6 +161,7 @@ export const PLAN_CONFIGS = {
     documents_collections: true,
     reports: true,
     campaigns: true,
+    chat: true,
   },
 }
 

@@ -50,6 +50,7 @@ const FEATURE_FLAGS = [
   { key: 'documents_collections', label: 'Document Collections' },
   { key: 'reports', label: 'Reports' },
   { key: 'campaigns', label: 'Campaigns' },
+  { key: 'chat', label: 'Chat' },
 ]
 
 function capitalize(str) {
@@ -150,6 +151,7 @@ function ManualOverrideDialog({ subscription, userId, open, onOpenChange }) {
       calendar_export: !!s.calendar_export,
       documents_collections: !!s.documents_collections,
       campaigns: !!s.campaigns,
+      chat: !!s.chat,
     })
   }, [open])
 
@@ -179,6 +181,7 @@ function ManualOverrideDialog({ subscription, userId, open, onOpenChange }) {
       calendar_export: form.calendar_export,
       documents_collections: form.documents_collections,
       campaigns: form.campaigns,
+      chat: form.chat,
     }
     override.mutate(fields, { onSuccess: () => onOpenChange(false) })
   }
